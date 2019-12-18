@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+  <head>
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-78018626-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+  
+    gtag('config', 'UA-78018626-1');
+  </script>
+
+  <link href="http://gmpg.org/xfn/11" rel="profile">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+  <!-- Enable responsiveness on mobile devices-->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+  <title>
+    
+      blog.aregger.io
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/public/css/poole.css">
+  <link rel="stylesheet" href="/public/css/syntax.css">
+  <link rel="stylesheet" href="/public/css/hyde.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400italic,700|Abril+Fatface">
+
+  <!-- Icons -->
+  <link rel="shortcut icon" href="/public/favicon.ico">
+
+  <!-- RSS -->
+  <link rel="alternate" type="application/rss+xml" title="RSS" href="/atom.xml">
+
+  <!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Page 2 of 3 for Home | blog.aregger.io</title>
+<meta name="generator" content="Jekyll v3.8.6" />
+<meta property="og:title" content="Home" />
+<meta name="author" content="Thomas Aregger" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="A blog about Oracle, SQL and Java" />
+<meta property="og:description" content="A blog about Oracle, SQL and Java" />
+<link rel="canonical" href="https://blog.aregger.io/page2/" />
+<meta property="og:url" content="https://blog.aregger.io/page2/" />
+<meta property="og:site_name" content="blog.aregger.io" />
+<link rel="prev" href="https://blog.aregger.io/" />
+<link rel="next" href="https://blog.aregger.io/page3" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Home" />
+<meta name="twitter:site" content="@taregger" />
+<meta name="twitter:creator" content="@taregger" />
+<script type="application/ld+json">
+{"url":"https://blog.aregger.io/page2/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"A blog about Oracle, SQL and Java","headline":"Home","@type":"WebPage","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+
+  <body>
+
+    <div class="sidebar">
+  <div class="container sidebar-sticky">
+    <div class="sidebar-about">
+      <h1>
+        <a href="/">
+	  blog. aregger.io
+        </a>
+      </h1>
+      <p class="lead">A blog about Oracle, SQL and Java</p>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="sidebar-nav-item" href="/">Home</a>
+
+      
+
+      
+      
+        
+          
+        
+      
+        
+          
+            <a class="sidebar-nav-item" href="/about/">About</a>
+          
+        
+      
+        
+          
+            <a class="sidebar-nav-item" href="/archive/">Archive</a>
+          
+        
+      
+        
+      
+        
+          
+        
+      
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+      
+        
+      
+
+    </nav>
+
+    <div class="sidebar-nav-social">
+      <a href="https://twitter.com/taregger">
+        <img src="/public/twitter.png" alt="twitter" height="32" width="32">
+      </a>
+    </div>
+
+    <!-- 
+    <p>&copy; 2019. All rights reserved.</p>
+    -->
+  </div>
+</div>
+
+
+    <div class="content container">
+      <div class="posts">
+  
+  <div class="post">
+    <h1 class="post-title">
+      <a href="/2019/01/06/sql-plan-baselines-and-the-optimizer-environment/">
+        SQL Plan Baselines and the Optimizer Environment
+      </a>
+    </h1>
+
+    <span class="post-date">06 Jan 2019</span>
+
+    <p>It should be clear that a SQL Plan Baseline becomes non-reproducible if you change the underlying objects in a way that prevents the optimizer from using the given execution plan (e.g. by dropping an index used in the execution plan). In such a situation the plan baseline will be marked as non-reproducible.</p>
+
+<p>A change in the optimizer environment can also be the reason for the optimizer not being able to reproduce a baseline. SQL Plan Baselines store a set of hints that should guide the optimizer to use the desired plan. But in some situations, not all the required hints to reproduce the exact same plan are stored in the baseline. This blog post explores these situations and gives some tips to avoid them. It also shows how such non-reproducible baselines can be made reproducible with the use of SQL Patch.</p>
+
+<h1 id="demo">Demo</h1>
+<p>Let’s create a simple table with an index</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">SQL</span><span class="o">&gt;</span> <span class="k">create</span> <span class="k">table</span> <span class="n">numbers</span> <span class="p">(</span><span class="n">num</span> <span class="nb">number</span><span class="p">(</span><span class="mi">4</span><span class="p">));</span>
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="k">create</span> <span class="k">index</span> <span class="n">num</span> <span class="k">on</span> <span class="n">numbers</span><span class="p">(</span><span class="n">num</span><span class="p">);</span>
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="k">insert</span> <span class="k">into</span> <span class="n">numbers</span> <span class="k">values</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="k">commit</span><span class="p">;</span></code></pre></figure>
+
+<p>We issue a simple query with some bind variables…</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">SQL</span><span class="o">&gt;</span> <span class="n">var</span> <span class="n">fromNum</span> <span class="nb">number</span><span class="p">;</span>
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="n">var</span> <span class="n">toNum</span> <span class="nb">number</span><span class="p">;</span>
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="k">exec</span> <span class="p">:</span><span class="n">fromNum</span> <span class="p">:</span><span class="o">=</span> <span class="mi">9</span><span class="p">;</span> <span class="p">:</span><span class="n">toNum</span> <span class="p">:</span><span class="o">=</span> <span class="mi">11</span><span class="p">;</span>
+
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">numbers</span> <span class="k">where</span> <span class="n">num</span> <span class="k">between</span> <span class="p">:</span><span class="n">fromNum</span> <span class="k">and</span> <span class="p">:</span><span class="n">toNum</span><span class="p">;</span>
+
+       <span class="n">NUM</span>
+<span class="c1">----------</span>
+        <span class="mi">10</span></code></pre></figure>
+
+<p>… and display its execution plan</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">SQL</span><span class="o">&gt;</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">());</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>SQL_ID  3gurcdja09xfm, child number 0
+-------------------------------------
+select * from numbers where num between :fromNum and :toNum
+
+Plan hash value: 3276288629
+
+--------------------------------------------------------------------------
+| Id  | Operation         | Name | Rows  | Bytes | Cost (%CPU)| Time     |
+--------------------------------------------------------------------------
+|   0 | SELECT STATEMENT  |      |       |       |     1 (100)|          |
+|*  1 |  FILTER           |      |       |       |            |          |
+|*  2 |   INDEX RANGE SCAN| NUM  |     1 |     3 |     1   (0)| 00:00:01 |
+--------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - filter(:TONUM&gt;=:FROMNUM)
+   2 - access(&quot;NUM&quot;&gt;=:FROMNUM AND &quot;NUM&quot;&lt;=:TONUM)</code></pre></figure>
+
+<p>Especially note the <code>FILTER</code> operation on plan line id 1. We create a baseline for this statement.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">SQL</span><span class="o">&gt;</span> <span class="n">var</span> <span class="n">baselineCount</span> <span class="nb">number</span><span class="p">;</span>
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="k">exec</span> <span class="p">:</span><span class="n">baselineCount</span> <span class="p">:</span><span class="o">=</span> <span class="n">dbms_spm</span><span class="p">.</span><span class="n">load_plans_from_cursor_cache</span><span class="p">(</span>
+                                 <span class="n">sql_id</span><span class="o">=&gt;</span><span class="s1">&#39;3gurcdja09xfm&#39;</span><span class="p">,</span>
+                                 <span class="n">fixed</span> <span class="o">=&gt;</span> <span class="s1">&#39;YES&#39;</span><span class="p">);</span>
+
+<span class="n">PL</span><span class="o">/</span><span class="k">SQL</span> <span class="k">procedure</span> <span class="n">successfully</span> <span class="n">completed</span><span class="p">.</span>
+
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="n">print</span> <span class="p">:</span><span class="n">baselineCount</span>
+
+<span class="n">BASELINECOUNT</span>
+<span class="c1">-------------</span>
+            <span class="mi">1</span></code></pre></figure>
+
+<p>When we execute the query again, we see a note at the end of the execution plan telling us that the created baseline was used.</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>SQL_ID  3gurcdja09xfm, child number 0
+-------------------------------------
+select * from numbers where num between :fromNum and :toNum
+
+Plan hash value: 3276288629
+
+--------------------------------------------------------------------------
+| Id  | Operation         | Name | Rows  | Bytes | Cost (%CPU)| Time     |
+--------------------------------------------------------------------------
+|   0 | SELECT STATEMENT  |      |       |       |     1 (100)|          |
+|*  1 |  FILTER           |      |       |       |            |          |
+|*  2 |   INDEX RANGE SCAN| NUM  |     1 |     3 |     1   (0)| 00:00:01 |
+--------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - filter(:TONUM&gt;=:FROMNUM)
+   2 - access(&quot;NUM&quot;&gt;=:FROMNUM AND &quot;NUM&quot;&lt;=:TONUM)
+
+Note
+-----
+   - SQL plan baseline SQL_PLAN_4vaynk3kdp6xm5792f51e used for this statement</code></pre></figure>
+
+<p>Now let’s change an optimizer parameter and re-execute the query. We also trace the <code>SQL_Compiler</code> component to get more information about what’s happening behind the scenes:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">SQL</span><span class="o">&gt;</span> <span class="k">alter</span> <span class="k">session</span> <span class="k">set</span> <span class="ss">&quot;_optimizer_generate_transitive_pred&quot;</span> <span class="o">=</span> <span class="k">false</span><span class="p">;</span>
+
+<span class="k">Session</span> <span class="n">altered</span><span class="p">.</span>
+
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="k">alter</span> <span class="k">session</span> <span class="k">set</span> <span class="n">events</span> <span class="s1">&#39;trace [SQL_Compiler.*]&#39;</span><span class="p">;</span>
+
+<span class="k">Session</span> <span class="n">altered</span><span class="p">.</span>
+
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">numbers</span> <span class="k">where</span> <span class="n">num</span> <span class="k">between</span> <span class="p">:</span><span class="n">fromNum</span> <span class="k">and</span> <span class="p">:</span><span class="n">toNum</span><span class="p">;</span>
+
+       <span class="n">NUM</span>
+<span class="c1">----------</span>
+        <span class="mi">10</span>
+
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">());</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>SQL_ID  3gurcdja09xfm, child number 1
+-------------------------------------
+select * from numbers where num between :fromNum and :toNum
+
+Plan hash value: 2824003243
+
+-------------------------------------------------------------------------
+| Id  | Operation        | Name | Rows  | Bytes | Cost (%CPU)| Time     |
+-------------------------------------------------------------------------
+|   0 | SELECT STATEMENT |      |       |       |     1 (100)|          |
+|*  1 |  INDEX RANGE SCAN| NUM  |     1 |     3 |     1   (0)| 00:00:01 |
+-------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - access(&quot;NUM&quot;&gt;=:FROMNUM AND &quot;NUM&quot;&lt;=:TONUM)
+
+Note
+-----
+   - Failed to use SQL plan baseline for this statement
+
+
+22 rows selected.
+
+Elapsed: 00:00:00.14</code></pre></figure>
+
+<p>In the trace file the following lines are written:</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>------- START SPM Plan Dump -------
+SPM: failed to reproduce the plan using the following info:
+  parse_schema name        : THOMAS
+  plan_baseline signature  : 5596800680717884339
+  plan_baseline plan_id    : 1469248798
+  plan_baseline hintset    :
+    hint num  1 len 27 text: IGNORE_OPTIM_EMBEDDED_HINTS
+    hint num  2 len 35 text: OPTIMIZER_FEATURES_ENABLE(&#39;18.1.0&#39;)
+    hint num  3 len 20 text: DB_VERSION(&#39;18.1.0&#39;)
+    hint num  4 len  8 text: ALL_ROWS
+    hint num  5 len 22 text: OUTLINE_LEAF(@&quot;SEL$1&quot;)
+    hint num  6 len 51 text: INDEX(@&quot;SEL$1&quot; &quot;NUMBERS&quot;@&quot;SEL$1&quot; (&quot;NUMBERS&quot;.&quot;NUM&quot;))
+SPM: generated non-matching plan:
+----- Explain Plan Dump -----
+----- Plan Table -----
+
+============
+Plan Table
+============
+------------------------------------+-----------------------------------+
+| Id  | Operation         | Name    | Rows  | Bytes | Cost  | Time      |
+------------------------------------+-----------------------------------+
+| 0   | SELECT STATEMENT  |         |       |       |     1 |           |
+| 1   |  INDEX RANGE SCAN | NUM     |     1 |     3 |     1 |  00:00:01 |
+------------------------------------+-----------------------------------+</code></pre></figure>
+
+<p>The generated plan with help from the hints from the baseline produced a slightly different plan (no <code>FILTER</code> operation anymore).
+This shows that the hints stored in this particular baseline are not sufficient to generate the exact same execution plan.</p>
+
+<p>Instead, Oracle will now use the generated plan with the lowest cost. In this example the used plan is not much worse than the one stored in the baseline, but the key point is that the baseline was not used. In real scenarios this could mean that a possibly much worse plan is used.</p>
+
+<h1 id="types-of-hints-not-stored-in-sql-plan-baselines">Types of hints not stored in SQL Plan Baselines</h1>
+<p>From my observations the following types of hints are not stored in SQL Plan Baselines:</p>
+<ul>
+  <li>Optimizer parameters (<code>opt_param(...)</code>)</li>
+  <li>Parallel hints (e.g. <code>PARALLEL</code> or <code>NO_PARALLEL</code>) when influenced by session level settings, by executing <code>alter session force parallel query</code> for example.</li>
+</ul>
+
+<p>So, if the optimizer environment of the session executing the statement differs from the environment where the execution plan of the baseline was generated, there’s a potential for non-reproducible plans. This is only true if there is no regular hint leading to the same execution plan. If, for example, an execution plan is doing an index join, the SQL Plan Baseline would store the hint <code>INDEX_JOIN</code>. Disabling index joins on session level (<code>alter session set "_index_join_enabled" = false</code>) has therefore no impact on the reproducibility of the baseline.</p>
+
+<p>When loading an execution plan into a SQL Plan baseline always keep in mind what optimizer environment was used to generate the plan and what optimizer environment is used by the session supposed to benefit from the SQL Plan Baseline.</p>
+
+<h1 id="add-the-missing-hints-to-the-sql-statement">Add the missing hints to the SQL statement</h1>
+<p>After we found out that our plan could not have been reproduced with the set of stored hints, the trace output can give us some valuable information about the sessions optimizer environment:</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>***************************************
+PARAMETERS USED BY THE OPTIMIZER
+********************************
+  *************************************
+  PARAMETERS WITH ALTERED VALUES
+  ******************************
+Compilation Environment Dump
+_optimizer_generate_transitive_pred = false
+Bug Fix Control Environment
+
+
+  *************************************
+  PARAMETERS WITH DEFAULT VALUES
+  ******************************
+...</code></pre></figure>
+
+<p><em>Note that in our scenario we used the default optimizer environment to generate an execution plan to be used in the SQL Plan Baseline and an altered optimizer environment to show that the baseline is not used. It could also be the other way around, whereas we would not find any information about altered parameters in the trace file.</em></p>
+
+<p>There are 2 ways to add the necessary hint to our statement:</p>
+<ol>
+  <li>Packing the SQL Plan Baseline into a staging table (<code>DBMS_SPM.PACK_STGTAB_BASELINE</code>), modify the hints stored in the <code>OTHER_XML</code> column and unpack it again.</li>
+  <li>Create a SQL Patch.</li>
+</ol>
+
+<p>The second approach is probably more supported, so we demonstrate that one. We just add the hint <code>opt_param('_optimizer_generate_transitive_pred' 'true')</code></p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">SQL</span><span class="o">&gt;</span> <span class="n">var</span> <span class="n">patchName</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">128</span><span class="p">)</span>
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="k">exec</span> <span class="p">:</span><span class="n">patchName</span> <span class="p">:</span><span class="o">=</span> <span class="n">dbms_sqldiag</span><span class="p">.</span><span class="n">create_sql_patch</span><span class="p">(</span>
+  <span class="n">sql_id</span> <span class="o">=&gt;</span> <span class="s1">&#39;3gurcdja09xfm&#39;</span><span class="p">,</span>
+  <span class="n">hint_text</span><span class="o">=&gt;</span><span class="s1">&#39;opt_param(&#39;&#39;_optimizer_generate_transitive_pred&#39;&#39; &#39;&#39;true&#39;&#39;)&#39;</span><span class="p">);</span>
+<span class="n">PL</span><span class="o">/</span><span class="k">SQL</span> <span class="k">procedure</span> <span class="n">successfully</span> <span class="n">completed</span><span class="p">.</span>
+
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="n">print</span> <span class="n">patchName</span>
+
+<span class="n">PATCHNAME</span>
+<span class="c1">----------------------------</span>
+<span class="n">SYS_SQLPTCH_0168234fa3400005</span></code></pre></figure>
+
+<p>Now let’s execute the query again:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">SQL</span><span class="o">&gt;</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">numbers</span> <span class="k">where</span> <span class="n">num</span> <span class="k">between</span> <span class="p">:</span><span class="n">fromNum</span> <span class="k">and</span> <span class="p">:</span><span class="n">toNum</span><span class="p">;</span>
+
+       <span class="n">NUM</span>
+<span class="c1">----------</span>
+        <span class="mi">10</span>
+
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">());</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>SQL_ID  3gurcdja09xfm, child number 0
+-------------------------------------
+select * from numbers where num between :fromNum and :toNum
+
+Plan hash value: 3276288629
+
+--------------------------------------------------------------------------
+| Id  | Operation         | Name | Rows  | Bytes | Cost (%CPU)| Time     |
+--------------------------------------------------------------------------
+|   0 | SELECT STATEMENT  |      |       |       |     1 (100)|          |
+|*  1 |  FILTER           |      |       |       |            |          |
+|*  2 |   INDEX RANGE SCAN| NUM  |     1 |     3 |     1   (0)| 00:00:01 |
+--------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - filter(:TONUM&gt;=:FROMNUM)
+   2 - access(&quot;NUM&quot;&gt;=:FROMNUM AND &quot;NUM&quot;&lt;=:TONUM)
+
+Note
+-----
+   - SQL patch &quot;SYS_SQLPTCH_0168234fa3400005&quot; used for this statement
+   - SQL plan baseline SQL_PLAN_4vaynk3kdp6xm5792f51e used for this statement
+
+
+25 rows selected.
+
+Elapsed: 00:00:00.09</code></pre></figure>
+
+<p>We see, that the created patch and the baseline are now used again.</p>
+
+<h1 id="final-thoughts">Final thoughts</h1>
+<p>I’m two-minded about the fact, that not all necessary hints are stored in the SQL Plan Baseline.</p>
+
+<p>In case of the parallel hints it would have been easy for Oracle to add them to the baseline when necessary, but it was probably decided to intentionally not do that. If you force parallelism on the session for example, you probably don’t want to use a baseline with a serial plan.</p>
+
+<p>Regarding the optimizer parameters I think a changed parameter should not be a reason for a baseline not being used.</p>
+
+
+
+    <a href="/2019/01/06/sql-plan-baselines-and-the-optimizer-environment/#comments">Comment</a>
+  </div>
+  
+  <div class="post">
+    <h1 class="post-title">
+      <a href="/jdbc-lob-prefetching/">
+        JDBC LOB Prefetching
+      </a>
+    </h1>
+
+    <span class="post-date">20 Dec 2018</span>
+
+    <p>In Oracle JDBC version 11.2 LOB prefetching was introduced. The whole point of LOB prefetching is to reduce the number of roundtrips needed to get the LOB data.</p>
+
+<p>The goal of this post is to show how LOB prefetching works and point out which variables influence the optimal prefetch value.</p>
+
+<h2 id="basics-of-lob-access">Basics of LOB access</h2>
+<p>With JDBC driver versions older than 11.2 the behaviour when fetching LOB data is as follows: The client fetches the amount of rows, depending on the set fetch size. If the rows include a LOB column, the client is provided with a LOB locator, which is basically a pointer to the LOB in the database. There is no actual LOB data sent to the client at this point. At the point where the LOB is accessed, e.g. by calling <code>ResultSet.getClob</code>, the client requests the LOB metadata from the database (like LOB length and chunk size). Then in a second step, the LOB data is requested from the database.</p>
+
+<p>So, for every row 2 additional roundtrips are necessary to get the LOB data.</p>
+
+<p>Since JDBC version 11.2 LOB prefetching is available, which can minimize the number of roundtrips. It can be set on the <code>DataSource</code>, <code>Connection</code>, <code>Statement</code> or even on column level by using one of the overloaded methods <code>OracleStatement.defineColumnType</code>. Check the <a href="https://docs.oracle.com/en/database/oracle/oracle-database/12.2/jjdbc/performance-extensions.html#GUID-5E60A90D-3924-4228-948D-4A9219201D18">documentation</a> for more information.</p>
+
+<h2 id="lob-prefetching">LOB Prefetching</h2>
+<p>In JDBC version 11.2 the default value for LOB prefetching is <code>-1</code> which disables LOB prefetching. Since 12.1 the default is <code>4000</code>.</p>
+
+<h3 id="metadata-only">Metadata only</h3>
+<p>By setting LOB prefetching to <code>0</code>, you enable metadata prefetching. For every LOB column, the metadata is already fetched with the rest of the row data. This avoids one extra roundtrip for each row when accessing the LOB, as described earlier.</p>
+
+<h3 id="lob-prefetching-1">LOB prefetching</h3>
+<p>Any value higher than <code>0</code>, sets the amount of LOB data to be prefetched for each LOB. For CLOB data it defines how many characters, for BLOB data how many bytes that are prefetched. So for each LOB smaller than the set prefetch size, no additional round trip to the database is necessary.</p>
+
+<h2 id="performance">Performance</h2>
+<p>As already mentioned, the whole point of LOB prefetching is to reduce the number of round trips to the database to get the LOB data. To measure the runtime of a simple query in different scenarios, I created a small benchmark where I always fetch the same data, but the following parameters are varying:</p>
+
+<ul>
+  <li>Fetch size</li>
+  <li>LOB prefetch size</li>
+  <li>Network latency</li>
+</ul>
+
+<h3 id="benchmark">Benchmark</h3>
+<p>All tests are done with Oracle JDBC 18.3 and Oracle Database 18.3. I’m not aware of any changes to how LOB prefetch work since version 11.2, but memory management has changed in the 12c driver, so it’s probably worth to execute the benchmark on your own if you use driver version 11.2.</p>
+
+<p>First, we create a table with some LOB data</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">create</span> <span class="k">table</span> <span class="n">lobtest</span> <span class="p">(</span><span class="n">id</span> <span class="nb">number</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span> <span class="k">data</span> <span class="k">clob</span><span class="p">);</span>
+
+<span class="k">insert</span> <span class="k">into</span> <span class="n">lobtest</span>
+<span class="k">select</span> <span class="n">rownum</span><span class="p">,</span> <span class="n">lpad</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="mi">4000</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">)</span>
+<span class="k">from</span> <span class="n">dual</span>
+<span class="k">connect</span> <span class="k">by</span> <span class="n">rownum</span> <span class="o">&lt;=</span> <span class="mi">1000</span><span class="p">;</span>
+
+<span class="k">commit</span><span class="p">;</span></code></pre></figure>
+
+<p>The benchmark itself is done with JMH. The test class can be seen <a href="https://gist.github.com/TAregger/15faf1f539b10729c60906bb687470c6">here</a>, but here’s a wrap-up what’s going on there.</p>
+
+<p>For all combinations of benchmark parameters, the following steps are performed:</p>
+<ul>
+  <li>Fetch 1000 rows in total.</li>
+  <li>For every row, access all the data stored in the LOB column.</li>
+</ul>
+
+<p>The parameters are as follows:</p>
+<ul>
+  <li>LOB size: 4000 bytes.</li>
+  <li>Total rows: 1000.</li>
+  <li>Fetch size: 10, 100, 1000.</li>
+  <li>LOB Prefetch: -1 (disabled), 0 (metadata), 2000 (half of the LOB), 4000 (whole LOB).</li>
+  <li>Network latency: ~0.5ms, ~1.5ms. <em>See <a href="https://blog.aregger.io/simulating-network-latency-linux/">this</a> blog post on how to simulate network latency on Linux.</em></li>
+</ul>
+
+<h3 id="results">Results</h3>
+<h4 id="roundtrips">Roundtrips</h4>
+<p>Let’s first have a look at the number of roundtrips needed. The chart simply shows how many times the database waited for <code>SQL*Net message from client</code>.
+<img src="/assets/2018-12-20-jdbc-lob-prefetching/roundtrips.png" alt="Benchmark Roundtrips" /></p>
+
+<p>We see that</p>
+<ul>
+  <li>The number of roundtrips is cut in half by using metadata prefetching.</li>
+  <li>Prefetching just part of the LOB data, results in the same number of roundtrips as when we just prefetch the metadata. This is because in this benchmark the rest of the LOB is always fetched later on.</li>
+  <li>By prefetching all the LOB data, the number of roundtrips is greatly reduced and mainly driven by the row fetch size.</li>
+</ul>
+
+<h4 id="runtime">Runtime</h4>
+<p>We saw the impact the different scenarios have on the number of roundtrips. The following chart shows the average runtime out of 10 runs for the various scenarios.
+The benchmark was performed with 2 different average network latencies (~0.5ms and ~1.5ms).</p>
+
+<p><img src="/assets/2018-12-20-jdbc-lob-prefetching/runtime_4k.png" alt="Benchmark Runtime" />
+<em>Note that the runtime was obfuscated and does not correspond to a real unit of time. The lowest runtime is set to 1, and the others are aligned accordingly.</em></p>
+
+<p>We see that</p>
+<ul>
+  <li>The higher the latency, the bigger the impact of reducing the roundtrips by prefetching the LOBs.</li>
+  <li>Prefetching only a part of the LOB, and access the rest later is slower than only prefetching the LOB metadata. I tested it also by fetching BLOB instead of CLOB data and access it with <code>ResultSet.getBytes</code>. I suspect that’s because of some implementation detail in the JDBC driver and something that could change in the future.</li>
+</ul>
+
+<h3 id="benchmark-with-10mb-lobs">Benchmark with 10MB LOBs</h3>
+<p>To get a feeling for what impact the size of the LOB has, I did a second benchmark with the following parameters:</p>
+
+<ul>
+  <li>LOB size: 10 MB.</li>
+  <li>Total Rows: 100.</li>
+  <li>Fetch size: 10, 100.</li>
+  <li>LOB Prefetch: -1 (disabled), 0 (metadata), 8000 (part of the LOB), 10485760 (whole LOB).</li>
+  <li>Network latency: ~0.5ms.</li>
+</ul>
+
+<p>Here’s the result:
+<img src="/assets/2018-12-20-jdbc-lob-prefetching/runtime_10m.png" alt="Benchmark Runtime" />
+<em>Note that the runtime was obfuscated and does not correspond to a real unit of time.</em></p>
+
+<p>We see that</p>
+<ul>
+  <li>Metadata prefetching or prefetching just part of the LOB data, does not show any runtime improvements in this case.</li>
+  <li>Even though the improvement of fetching the whole LOB is not as big as with 4K LOB size, it’s still ~65% faster.</li>
+  <li>Bigger LOBs (and same network latency) will further diminish the relative performance improvement.</li>
+</ul>
+
+<h2 id="memory-consumption">Memory Consumption</h2>
+<p>I didn’t do any measurements on client-side memory consumption but you should be aware that row fetch size and lob prefetch size affect memory consumption.
+If you for example, set LOB prefetch size to <code>4000</code> and row fetch size to <code>1000</code>, the driver needs at least 10 times more memory than setting the fetch size to <code>100</code>.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+<ul>
+  <li>With high network latency and small LOBs, the benefit of LOB prefetching will be most noticeable.</li>
+  <li>The larger the LOBs get or the lower the network latency is, the less overall time is spent for the roundtrips and the benefit will be less significant.</li>
+  <li>Setting the optimal value for LOB prefetching depends on your LOB size (or to be more precise, the amount of LOB data that is accessed), the fraction of LOBs that are really accessed (e.g. only every 10th LOB in your result set is accessed), network latency, and last but not least on your memory constraints.</li>
+  <li>As many factors come into play when setting the optimal value, you have to test it under real conditions in your environment.</li>
+</ul>
+
+<h2 id="references">References</h2>
+<ul>
+  <li><a href="https://docs.oracle.com/en/database/oracle/oracle-database/12.2/jjdbc/performance-extensions.html#GUID-5E60A90D-3924-4228-948D-4A9219201D18">Oracle JDBC Guide about LOB prefetching</a></li>
+  <li><a href="https://gist.github.com/TAregger/15faf1f539b10729c60906bb687470c6">Benchmark code</a></li>
+</ul>
+
+
+
+    <a href="/jdbc-lob-prefetching/#comments">Comment</a>
+  </div>
+  
+  <div class="post">
+    <h1 class="post-title">
+      <a href="/simulating-network-latency-linux/">
+        Simulating network latency on Linux
+      </a>
+    </h1>
+
+    <span class="post-date">16 Dec 2018</span>
+
+    <p>If you want to run test cases that are sensitive to network latency, it’s important to also test them under the effect of different latencies.
+For example you want to know what it means if you move an application currently running on the same server as the database to a different server. Or you are doing some small tests locally on your computer and want to know how they would behave in a real environment where client and server are on different machines, maybe even with long geographical distances between them.</p>
+
+<p>I usually use the method described here when I want to run some tests on my laptop where I have an Oracle Database running in a Virtualbox VM.</p>
+
+<p>Linux provides a kernel module called NetEm (Network Emulator). With NetEm you can add a delay to all packages leaving (outgoing) a certain network interface. You can do a lot more things with NetEm like duplicating, corrupting or reordering packages and more. Check the man page or the links at the end of this post to find out more about it.</p>
+
+<p>NetEm is an enhancement of the Linux traffic control facilities and can therefore be controlled with <code>tc</code>.</p>
+
+<h2 id="using-the-tc-command-line-tool-to-add-a-delay">Using the tc command line tool to add a delay</h2>
+
+<p>Add a delay of 10ms to eth1</p>
+<pre><code>tc qdisc add dev eth1 root netem delay 10ms
+</code></pre>
+
+<p>Change an already configured delay</p>
+<pre><code>tc qdisc change dev eth1 root netem delay 5ms
+</code></pre>
+
+<p>Show configuration of eth1</p>
+<pre><code>tc qdisc show dev eth1
+</code></pre>
+
+<p>Remove a configured delay</p>
+<pre><code>tc qdisc del dev eth1 root netem delay 4ms
+</code></pre>
+
+<h2 id="example">Example</h2>
+<p>I’m just going to ping my virtual machine and add a delay after a couple of pings.</p>
+
+<p>Ping my virtual machine from my local machine</p>
+<pre><code>ping oracle-database-183
+</code></pre>
+
+<p>Add delay of 10ms on eth1 on my virtual machine. This means the packages leaving eth1 (in this examples the answers to the ping) will be delayed by 10ms.</p>
+<pre><code>tc qdisc add dev eth1 root netem delay 10ms
+</code></pre>
+
+<p>Output of ping</p>
+<pre><code>PING oracle-database-183 (192.168.56.202): 56 data bytes
+64 bytes from 192.168.56.202: icmp_seq=0 ttl=64 time=0.255 ms
+64 bytes from 192.168.56.202: icmp_seq=1 ttl=64 time=0.376 ms
+64 bytes from 192.168.56.202: icmp_seq=2 ttl=64 time=0.329 ms
+64 bytes from 192.168.56.202: icmp_seq=3 ttl=64 time=0.336 ms
+64 bytes from 192.168.56.202: icmp_seq=4 ttl=64 time=0.310 ms
+64 bytes from 192.168.56.202: icmp_seq=5 ttl=64 time=10.870 ms
+64 bytes from 192.168.56.202: icmp_seq=6 ttl=64 time=10.992 ms
+64 bytes from 192.168.56.202: icmp_seq=7 ttl=64 time=10.910 ms
+64 bytes from 192.168.56.202: icmp_seq=8 ttl=64 time=10.900 ms
+64 bytes from 192.168.56.202: icmp_seq=9 ttl=64 time=10.790 ms
+</code></pre>
+
+<p>The output of ping clearly shows the effect of adding the delay with tc.</p>
+
+<h2 id="references">References</h2>
+<ul>
+  <li><a href="https://community.oracle.com/docs/DOC-1007578">Oracle Community article</a></li>
+  <li><a href="https://wiki.linuxfoundation.org/networking/netem">Linux Foundation Wiki</a></li>
+  <li><a href="http://man7.org/linux/man-pages/man8/tc-netem.8.html">man page</a></li>
+</ul>
+
+
+
+    <a href="/simulating-network-latency-linux/#comments">Comment</a>
+  </div>
+  
+  <div class="post">
+    <h1 class="post-title">
+      <a href="/hide-sql-text-from-dbms_xplan-output/">
+        Hide SQL statement text from DBMS_XPLAN output
+      </a>
+    </h1>
+
+    <span class="post-date">22 Apr 2018</span>
+
+    <p>The <a href="https://docs.oracle.com/database/121/ARPLS/d_xplan.htm#ARPLS70130">dbms_xplan.display*</a> functions have a lot of options to format the execution plan output via the format parameter. What often annoys me is the output of the SQL statement text. If, for example, you want to display all execution plans of a cursor with many child cursors and large SQL statement texts, the SQL text is returned for each child cursor and clutters your screen. Unfortunately there is no way to turn off this output with a format parameter.</p>
+
+<p>Luckily we can just filter the rows returned by <code>dbms_xplan.display*</code> functions with a custom query. This blog post show you how. If you are just interested in how the final query looks like, click <a href="#final-query">here</a>.</p>
+
+<h2 id="build-the-query">Build the query</h2>
+
+<p>First, let’s have a look at a sample output of <code>dbms_xplan.display_cursor</code> for a cursor with 2 child cursors.</p>
+
+<h4 id="query">Query</h4>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="k">table</span><span class="p">(</span>
+  <span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">(</span><span class="s1">&#39;&amp;sqlId&#39;</span><span class="p">,</span> <span class="k">null</span><span class="p">,</span> <span class="s1">&#39;TYPICAL&#39;</span><span class="p">)</span>
+<span class="p">);</span></code></pre></figure>
+
+<h4 id="output">Output</h4>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>PLAN_TABLE_OUTPUT
+------------------------------------------------------------------------
+<span class="hll">SQL_ID  934ur8r7tqbjx, child number 0
+</span>-------------------------------------
+SELECT DBID FROM V$DATABASE
+
+Plan hash value: 735420252
+
+----------------------------------------------------------------------
+<span class="hll">| Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+</span>----------------------------------------------------------------------
+|   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+|   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+|*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+|   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+|   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+----------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))
+
+<span class="hll">SQL_ID  934ur8r7tqbjx, child number 1
+</span>-------------------------------------
+SELECT DBID FROM V$DATABASE
+
+Plan hash value: 735420252
+
+----------------------------------------------------------------------
+<span class="hll">| Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+</span>----------------------------------------------------------------------
+|   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+|   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+|*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+|   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+|   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+----------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))</code></pre></figure>
+
+<p>The highlighted lines in the output above should always occur in the output, no matter what format options are defined. They are also very easy to identify with a simple regex, so the idea is to filter out everything in between them, with some exceptions (like the Plan hash value line or the header of the execution plan table).</p>
+
+<p>A couple of ways to do that come to my mind:</p>
+
+<ul>
+  <li>Create a PL/SQL function which accepts the output of the <code>DBMS_XPLAN.DISPLAY_CURSOR</code> function and process it procedurally row by row. I don’t want to create any objects in the database, but in 12c you could define the function in the <code>WITH</code> clause. As I want a solution also working on older Oracle version I don’t follow this approach.</li>
+  <li>The pattern matching functionality in 12c is very powerful and could to this job, but again, I don’t want to depend on 12c.</li>
+  <li>There must be a way to do this with analytic functions. They are available since Oracle 8i, so I’m able to use this solution on all environments I need.</li>
+</ul>
+
+<h3 id="first-step-use-last_value-analytic-function">First step: Use last_value analytic function</h3>
+
+<p>The idea is to add an additional column to the plan output which has the value 1 if the row should be display or 0 if it shouldn’t be displayed.</p>
+
+<p>I use the <code>CASE</code> expression as a first step to mark a row to either be shown or not. In combination with the <a href="https://docs.oracle.com/database/121/SQLRF/functions097.htm#SQLRF00655">LAST_VALUE</a> analytic function we can mark all subsequent rows the same way.</p>
+
+<h4 id="query-1">Query</h4>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="n">plan_table_output</span><span class="p">,</span><span class="k">show</span> <span class="k">from</span> <span class="p">(</span>
+<span class="k">select</span>
+  <span class="n">plan_table_output</span><span class="p">,</span>
+  <span class="n">last_value</span><span class="p">(</span>
+    <span class="k">case</span>
+      <span class="k">when</span> <span class="n">plan_table_output</span> <span class="k">like</span> <span class="s1">&#39;| Id%&#39;</span>
+        <span class="k">then</span> <span class="mi">1</span>
+      <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">,</span>
+                       <span class="s1">&#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&#39;</span><span class="p">)</span>
+        <span class="k">then</span> <span class="mi">0</span> 
+      <span class="k">else</span> <span class="k">null</span>
+    <span class="k">end</span><span class="p">)</span> <span class="k">ignore</span> <span class="n">nulls</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">)</span>
+  <span class="k">as</span> <span class="k">show</span>
+<span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">(</span><span class="s1">&#39;&amp;sqlId&#39;</span><span class="p">,</span><span class="k">null</span><span class="p">,</span><span class="s1">&#39;TYPICAL&#39;</span><span class="p">)))</span>
+<span class="o">/</span></code></pre></figure>
+
+<p>Check the output below first, to see what’s returned.</p>
+
+<p>The use of <code>NULL</code> and the <code>IGNORE NULLS</code> clause in the <code>LAST_VALUE</code> function is important. This way, for every <code>NULL</code> returned by the <code>CASE</code> expression, the <code>LAST_VALUE</code> function ignores them and uses the last non-null value, which is either 1 or 0.</p>
+
+<p>Note that the regex also searches for <code>HASH_VALUE</code> and <code>EXPLAINED SQL STATEMENT</code>. This is because, depending on the detail level chosen in the format parameter of the <code>DBMS_XPLAN</code> function, the output looks a little bit different.</p>
+
+<h4 id="output-1">Output</h4>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>SHOW PLAN_TABLE_OUTPUT
+---- ----------------------------------------------------------------------
+<span class="hll">   0 SQL_ID  934ur8r7tqbjx, child number 0
+</span><span class="hll">   0 -------------------------------------
+</span><span class="hll">   0 SELECT DBID FROM V$DATABASE
+</span><span class="hll">   0
+</span><span class="hll">   0 Plan hash value: 735420252
+</span><span class="hll">   0
+</span><span class="hll">   0 ----------------------------------------------------------------------
+</span>   1 | Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+   1 ----------------------------------------------------------------------
+   1 |   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+   1 |   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+   1 |*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+   1 |   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+   1 |   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+   1 ----------------------------------------------------------------------
+   1
+   1 Predicate Information (identified by operation id):
+   1 ---------------------------------------------------
+   1
+   1    2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))
+   1
+<span class="hll">   0 SQL_ID  934ur8r7tqbjx, child number 1
+</span><span class="hll">   0 -------------------------------------
+</span><span class="hll">   0 SELECT DBID FROM V$DATABASE
+</span><span class="hll">   0
+</span><span class="hll">   0 Plan hash value: 735420252
+</span><span class="hll">   0
+</span><span class="hll">   0 ----------------------------------------------------------------------
+</span>   1 | Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+   1 ----------------------------------------------------------------------
+   1 |   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+   1 |   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+   1 |*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+   1 |   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+   1 |   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+   1 ----------------------------------------------------------------------
+   1
+   1 Predicate Information (identified by operation id):
+   1 ---------------------------------------------------
+   1
+   1    2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))
+   1</code></pre></figure>
+
+<p>The column <code>SHOW</code> now correctly contains 0 for the SQL statement section, but we also have some false negatives:</p>
+
+<ul>
+  <li>The row showing use the <code>SQL_ID</code></li>
+  <li>The row after the <code>SQL_ID</code> which is kind of a separator</li>
+  <li>The row showing the plan hash value</li>
+  <li>The first row which is part of the execution plan table header</li>
+</ul>
+
+<h3 id="second-step-refine-query">Second step: Refine query</h3>
+
+<p>To fix these false negatives, again we use the <code>CASE</code> expression in combination with some regex.</p>
+
+<p>The <code>LAG</code> and <code>LEAD</code> analytic functions are used to decide what value the column has, depending on the next or previous row.</p>
+
+<h4 id="query-2">Query</h4>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="k">show</span><span class="p">,</span><span class="n">plan_table_output</span> <span class="k">from</span> <span class="p">(</span>
+<span class="k">select</span>
+  <span class="n">plan_table_output</span><span class="p">,</span>
+  <span class="k">case</span>
+<span class="hll">    <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">,</span> 
+</span><span class="hll">                    <span class="s1">&#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&#39;</span><span class="p">)</span>
+</span><span class="hll">      <span class="k">then</span> <span class="mi">1</span>
+</span><span class="hll">    <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">lag</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">)</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">),</span>
+</span><span class="hll">                    <span class="s1">&#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&#39;</span><span class="p">)</span>
+</span><span class="hll">      <span class="k">then</span> <span class="mi">1</span>
+</span><span class="hll">    <span class="k">when</span> <span class="p">(</span><span class="n">lead</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">)</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">))</span> <span class="k">like</span> <span class="s1">&#39;| Id%&#39;</span>
+</span><span class="hll">      <span class="k">then</span> <span class="mi">1</span>
+</span><span class="hll">    <span class="k">when</span> <span class="n">plan_table_output</span> <span class="k">like</span> <span class="s1">&#39;Plan hash value%&#39;</span>
+</span><span class="hll">      <span class="k">then</span> <span class="mi">1</span>
+</span>    <span class="k">else</span> <span class="n">last_value</span><span class="p">(</span>
+      <span class="k">case</span>
+        <span class="k">when</span> <span class="n">plan_table_output</span> <span class="k">like</span> <span class="s1">&#39;| Id%&#39;</span>
+          <span class="k">then</span> <span class="mi">1</span>
+        <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">,</span>
+                        <span class="s1">&#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&#39;</span><span class="p">)</span>
+          <span class="k">then</span> <span class="mi">0</span> 
+	<span class="k">else</span> <span class="k">null</span>
+    <span class="k">end</span><span class="p">)</span> <span class="k">ignore</span> <span class="n">nulls</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">)</span>
+  <span class="k">end</span> <span class="k">as</span> <span class="k">show</span>
+<span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">(</span><span class="s1">&#39;&amp;sqlId&#39;</span><span class="p">,</span> <span class="k">null</span><span class="p">,</span><span class="s1">&#39;TYPICAL&#39;</span><span class="p">)))</span>
+<span class="o">/</span></code></pre></figure>
+
+<h4 id="output-2">Output</h4>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>SHOW PLAN_TABLE_OUTPUT
+---- ----------------------------------------------------------------------
+   1 SQL_ID  934ur8r7tqbjx, child number 0
+   1 -------------------------------------
+<span class="hll">   0 SELECT DBID FROM V$DATABASE
+</span><span class="hll">   0
+</span>   1 Plan hash value: 735420252
+<span class="hll">   0
+</span>   1 ----------------------------------------------------------------------
+   1 | Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+   1 ----------------------------------------------------------------------
+   1 |   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+   1 |   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+   1 |*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+   1 |   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+   1 |   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+   1 ----------------------------------------------------------------------
+   1
+   1 Predicate Information (identified by operation id):
+   1 ---------------------------------------------------
+   1
+   1    2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))
+   1
+   1 SQL_ID  934ur8r7tqbjx, child number 1
+   1 -------------------------------------
+<span class="hll">   0 SELECT DBID FROM V$DATABASE
+</span><span class="hll">   0
+</span>   1 Plan hash value: 735420252
+<span class="hll">   0
+</span>   1 ----------------------------------------------------------------------
+   1 | Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+   1 ----------------------------------------------------------------------
+   1 |   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+   1 |   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+   1 |*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+   1 |   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+   1 |   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+   1 ----------------------------------------------------------------------
+   1
+   1 Predicate Information (identified by operation id):
+   1 ---------------------------------------------------
+   1
+   1    2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))
+   1</code></pre></figure>
+
+<p><a id="final-query"></a></p>
+
+<h3 id="final-query">Final query</h3>
+
+<p>This is exactly what we want. All we have to do now, is to remove the projection of the <code>SHOW</code> column and filter the rows with <code>SHOW=0</code>.</p>
+
+<h4 id="query-3">Query</h4>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="hll"><span class="k">select</span> <span class="n">plan_table_output</span> <span class="k">from</span> <span class="p">(</span>
+</span><span class="k">select</span>
+  <span class="n">plan_table_output</span><span class="p">,</span>
+  <span class="k">case</span>
+    <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">,</span> 
+                    <span class="s1">&#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&#39;</span><span class="p">)</span>
+      <span class="k">then</span> <span class="mi">1</span>
+    <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">lag</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">)</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">),</span>
+                    <span class="s1">&#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&#39;</span><span class="p">)</span>
+      <span class="k">then</span> <span class="mi">1</span>
+    <span class="k">when</span> <span class="p">(</span><span class="n">lead</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">)</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">))</span> <span class="k">like</span> <span class="s1">&#39;| Id%&#39;</span>
+      <span class="k">then</span> <span class="mi">1</span>
+    <span class="k">when</span> <span class="n">plan_table_output</span> <span class="k">like</span> <span class="s1">&#39;Plan hash value%&#39;</span>
+      <span class="k">then</span> <span class="mi">1</span>
+    <span class="k">else</span> <span class="n">last_value</span><span class="p">(</span>
+      <span class="k">case</span>
+        <span class="k">when</span> <span class="n">plan_table_output</span> <span class="k">like</span> <span class="s1">&#39;| Id%&#39;</span> 
+          <span class="k">then</span> <span class="mi">1</span>
+        <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">,</span> 
+                        <span class="s1">&#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&#39;</span><span class="p">)</span>
+          <span class="k">then</span> <span class="mi">0</span> 
+	<span class="k">else</span> <span class="k">null</span>
+    <span class="k">end</span><span class="p">)</span> <span class="k">ignore</span> <span class="n">nulls</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">)</span>
+  <span class="k">end</span> <span class="k">as</span> <span class="k">show</span>
+<span class="hll"><span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">(</span><span class="s1">&#39;&amp;sqlId&#39;</span><span class="p">,</span> <span class="k">null</span><span class="p">,</span><span class="s1">&#39;TYPICAL&#39;</span><span class="p">)))</span>
+</span><span class="k">where</span> <span class="k">show</span><span class="o">=</span><span class="mi">1</span>
+<span class="o">/</span></code></pre></figure>
+
+<h4 id="output-3">Output</h4>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>PLAN_TABLE_OUTPUT
+----------------------------------------------------------------------
+SQL_ID  934ur8r7tqbjx, child number 0
+-------------------------------------
+Plan hash value: 735420252
+----------------------------------------------------------------------
+| Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+----------------------------------------------------------------------
+|   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+|   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+|*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+|   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+|   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+----------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))
+
+SQL_ID  934ur8r7tqbjx, child number 1
+-------------------------------------
+Plan hash value: 735420252
+----------------------------------------------------------------------
+| Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+----------------------------------------------------------------------
+|   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+|   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+|*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+|   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+|   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+----------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))</code></pre></figure>
+
+<p>The query was tested with various format options and should work equally well under 12c and 11g and probably also on older versions.</p>
+
+<p>I use a variaton of it in a script where I can control whether the SQL statement text is shown or not with when I invoke it.</p>
+
+
+    <a href="/hide-sql-text-from-dbms_xplan-output/#comments">Comment</a>
+  </div>
+  
+  <div class="post">
+    <h1 class="post-title">
+      <a href="/find-procedures-pragma-restrict_references/">
+        Find functions with pragma RESTRICT_REFERENCES
+      </a>
+    </h1>
+
+    <span class="post-date">18 Dec 2017</span>
+
+    <p>If you want to do parallel DML and use packaged functions in the statement, the functions need to fulfill certain requirements. Otherwise you will get the following note in the plan and PDML is not used:</p>
+
+<pre><code>- PDML disabled because function is not pure and not declared parallel enabled
+</code></pre>
+
+<p>This means your function must be either pure or declared with the <a href="https://docs.oracle.com/en/database/oracle/oracle-database/12.2/lnpls/PARALLEL_ENABLE-clause.html#GUID-CFF3C7D3-6438-44C2-9FAF-569F246C37CA">parallel-enable clause</a>.</p>
+
+<p>The parallel enabled requirement is easy to check, you can find it out by querying <code>DBA_PROCEDURES.PARALLEL</code></p>
+
+<h1 id="pure-functions">Pure functions</h1>
+
+<p>The second one is a bit harder, because it is not directly exposed via a database view.</p>
+
+<p>First we need to know what <em>pure</em> means in this case. A function is considered as pure if it is defined with the pragma <a href="https://docs.oracle.com/en/database/oracle/oracle-database/12.2/lnpls/RESTRICT_REFERENCES-pragma.html#GUID-D189A0B4-D0D3-4951-BFC2-7D996F1659FE">RESTRICT_REFERENCES</a> and all four constraints <code>RNDS</code>, <code>WNDS</code>, <code>RNPS</code> and <code>WNPS</code>.</p>
+
+<p>This information is encoded in <code>SYS.PROCEDUREINFO$.PROPERTIES</code>. The following query can be used to display which constraints of the pragma are used in a function/procedure:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="n">o</span><span class="p">.</span><span class="n">OBJECT_NAME</span><span class="p">,</span>
+       <span class="n">pi</span><span class="p">.</span><span class="n">procedurename</span><span class="p">,</span>
+       <span class="n">decode</span><span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">8388608</span><span class="p">),</span> <span class="mi">8388608</span><span class="p">,</span> <span class="s1">&#39;NO&#39;</span><span class="p">,</span> <span class="s1">&#39;YES&#39;</span><span class="p">)</span>
+         <span class="k">as</span> <span class="n">pragma_restrict_references</span><span class="p">,</span>
+       <span class="n">decode</span><span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">524288</span><span class="p">),</span> <span class="mi">524288</span><span class="p">,</span> <span class="s1">&#39;NO&#39;</span><span class="p">,</span> <span class="s1">&#39;YES&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">rnds</span><span class="p">,</span>
+       <span class="n">decode</span><span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">1048576</span><span class="p">),</span> <span class="mi">1048576</span><span class="p">,</span> <span class="s1">&#39;NO&#39;</span><span class="p">,</span> <span class="s1">&#39;YES&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">wnds</span><span class="p">,</span>
+       <span class="n">decode</span><span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">131072</span><span class="p">),</span> <span class="mi">131072</span><span class="p">,</span> <span class="s1">&#39;NO&#39;</span><span class="p">,</span> <span class="s1">&#39;YES&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">rnps</span><span class="p">,</span>
+       <span class="n">decode</span><span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">262144</span><span class="p">),</span> <span class="mi">262144</span><span class="p">,</span> <span class="s1">&#39;NO&#39;</span><span class="p">,</span> <span class="s1">&#39;YES&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">wnps</span>
+  <span class="k">from</span> <span class="n">sys</span><span class="p">.</span><span class="n">procedureinfo$</span> <span class="n">pi</span>
+  <span class="k">join</span> <span class="n">dba_objects</span> <span class="n">o</span>
+    <span class="k">on</span> <span class="p">(</span><span class="n">o</span><span class="p">.</span><span class="n">OBJECT_ID</span> <span class="o">=</span> <span class="n">pi</span><span class="p">.</span><span class="n">obj</span><span class="o">#</span><span class="p">);</span></code></pre></figure>
+
+<p>So to finally find out if your function can be used in PDML statements, the following query can be used:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="n">o</span><span class="p">.</span><span class="n">OBJECT_NAME</span><span class="p">,</span> <span class="n">pi</span><span class="p">.</span><span class="n">procedurename</span>
+  <span class="k">from</span> <span class="n">sys</span><span class="p">.</span><span class="n">procedureinfo$</span> <span class="n">pi</span>
+  <span class="k">join</span> <span class="n">dba_objects</span> <span class="n">o</span> <span class="k">on</span> <span class="p">(</span><span class="n">o</span><span class="p">.</span><span class="n">OBJECT_ID</span> <span class="o">=</span> <span class="n">pi</span><span class="p">.</span><span class="n">obj</span><span class="o">#</span><span class="p">)</span>
+  <span class="k">join</span> <span class="n">dba_procedures</span> <span class="n">p</span> <span class="k">on</span> <span class="p">(</span><span class="n">o</span><span class="p">.</span><span class="k">OWNER</span> <span class="o">=</span> <span class="n">p</span><span class="p">.</span><span class="k">OWNER</span>
+    <span class="k">and</span> <span class="n">o</span><span class="p">.</span><span class="n">OBJECT_NAME</span> <span class="o">=</span> <span class="n">p</span><span class="p">.</span><span class="n">OBJECT_NAME</span>
+    <span class="k">and</span> <span class="n">pi</span><span class="p">.</span><span class="n">procedurename</span> <span class="o">=</span> <span class="n">p</span><span class="p">.</span><span class="n">PROCEDURE_NAME</span><span class="p">)</span>
+ <span class="k">where</span> <span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">PARALLEL</span> <span class="o">=</span> <span class="s1">&#39;YES&#39;</span> 
+   <span class="k">or</span> <span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">8388608</span><span class="p">)</span> <span class="o">&lt;&gt;</span> <span class="mi">8388608</span> <span class="k">and</span>
+       <span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">524288</span><span class="p">)</span> <span class="o">&lt;&gt;</span> <span class="mi">524288</span> <span class="k">and</span>
+       <span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">1048576</span><span class="p">)</span> <span class="o">&lt;&gt;</span> <span class="mi">1048576</span> <span class="k">and</span>
+       <span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">131072</span><span class="p">)</span> <span class="o">&lt;&gt;</span> <span class="mi">131072</span> <span class="k">and</span>
+       <span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">262144</span><span class="p">)</span> <span class="o">&lt;&gt;</span> <span class="mi">262144</span><span class="p">))</span>
+   <span class="k">and</span> <span class="n">p</span><span class="p">.</span><span class="n">OBJECT_NAME</span> <span class="o">=</span> <span class="s1">&#39;&amp;packageName&#39;</span>
+   <span class="k">and</span> <span class="n">p</span><span class="p">.</span><span class="n">PROCEDURE_NAME</span> <span class="o">=</span> <span class="s1">&#39;&amp;procedureName&#39;</span><span class="p">;</span></code></pre></figure>
+
+<h1 id="conclusion">Conclusion</h1>
+
+<p>The above query provides an easy and fast way to determine if a function can be used in PDML statements. This is especially useful if you have a function for which you don’t own the source.</p>
+
+<p><strong>Example:</strong></p>
+
+<p>We had a DML statement which was using <code>UTL_I18N.STRING_TO_RAW</code>. This function is neither parallel enabled nor does it have the required pragma <code>RESTRICT_REFERENCES</code>. Therefore no PDML was performed.</p>
+
+<p>We simply changed the statement to use <code>UTL_RAW.CAST_TO_RAW</code> instead, which has the pragma <code>RESTRICT_REFERENCE</code> required for PDML.</p>
+
+<p>Of course these two functions do not provide the exact same functionality, but in our case (destination charset was the same as database charset) we were able to swap them without risk.</p>
+
+
+    <a href="/find-procedures-pragma-restrict_references/#comments">Comment</a>
+  </div>
+  
+</div>
+
+<div class="pagination">
+  
+    <a class="pagination-item older" href="/page3">Older</a>
+  
+  
+    
+      <a class="pagination-item newer" href="/">Newer</a>
+    
+  
+</div>
+
+    </div>
+
+  </body>
+</html>

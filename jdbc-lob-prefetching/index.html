@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+  <head>
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-78018626-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+  
+    gtag('config', 'UA-78018626-1');
+  </script>
+
+  <link href="http://gmpg.org/xfn/11" rel="profile">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+  <!-- Enable responsiveness on mobile devices-->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+  <title>
+    
+      JDBC LOB Prefetching &middot; blog.aregger.io
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/public/css/poole.css">
+  <link rel="stylesheet" href="/public/css/syntax.css">
+  <link rel="stylesheet" href="/public/css/hyde.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400italic,700|Abril+Fatface">
+
+  <!-- Icons -->
+  <link rel="shortcut icon" href="/public/favicon.ico">
+
+  <!-- RSS -->
+  <link rel="alternate" type="application/rss+xml" title="RSS" href="/atom.xml">
+
+  <!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>JDBC LOB Prefetching | blog.aregger.io</title>
+<meta name="generator" content="Jekyll v3.8.6" />
+<meta property="og:title" content="JDBC LOB Prefetching" />
+<meta name="author" content="Thomas Aregger" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="In Oracle JDBC version 11.2 LOB prefetching was introduced. The whole point of LOB prefetching is to reduce the number of roundtrips needed to get the LOB data." />
+<meta property="og:description" content="In Oracle JDBC version 11.2 LOB prefetching was introduced. The whole point of LOB prefetching is to reduce the number of roundtrips needed to get the LOB data." />
+<link rel="canonical" href="https://blog.aregger.io/jdbc-lob-prefetching/" />
+<meta property="og:url" content="https://blog.aregger.io/jdbc-lob-prefetching/" />
+<meta property="og:site_name" content="blog.aregger.io" />
+<meta property="og:image" content="https://blog.aregger.io/assets/2018-12-20-jdbc-lob-prefetching/runtime_4k.png" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2018-12-20T00:00:00+01:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:image" content="https://blog.aregger.io/assets/2018-12-20-jdbc-lob-prefetching/runtime_4k.png" />
+<meta property="twitter:title" content="JDBC LOB Prefetching" />
+<meta name="twitter:site" content="@taregger" />
+<meta name="twitter:creator" content="@taregger" />
+<script type="application/ld+json">
+{"datePublished":"2018-12-20T00:00:00+01:00","image":"https://blog.aregger.io/assets/2018-12-20-jdbc-lob-prefetching/runtime_4k.png","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/jdbc-lob-prefetching/"},"url":"https://blog.aregger.io/jdbc-lob-prefetching/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"In Oracle JDBC version 11.2 LOB prefetching was introduced. The whole point of LOB prefetching is to reduce the number of roundtrips needed to get the LOB data.","headline":"JDBC LOB Prefetching","dateModified":"2018-12-20T00:00:00+01:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+
+  <body>
+
+    <div class="sidebar">
+  <div class="container sidebar-sticky">
+    <div class="sidebar-about">
+      <h1>
+        <a href="/">
+	  blog. aregger.io
+        </a>
+      </h1>
+      <p class="lead">A blog about Oracle, SQL and Java</p>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="sidebar-nav-item" href="/">Home</a>
+
+      
+
+      
+      
+        
+          
+        
+      
+        
+          
+            <a class="sidebar-nav-item" href="/about/">About</a>
+          
+        
+      
+        
+          
+            <a class="sidebar-nav-item" href="/archive/">Archive</a>
+          
+        
+      
+        
+      
+        
+          
+        
+      
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+      
+        
+      
+
+    </nav>
+
+    <div class="sidebar-nav-social">
+      <a href="https://twitter.com/taregger">
+        <img src="/public/twitter.png" alt="twitter" height="32" width="32">
+      </a>
+    </div>
+
+    <!-- 
+    <p>&copy; 2019. All rights reserved.</p>
+    -->
+  </div>
+</div>
+
+
+    <div class="content container">
+      <div class="post">
+  <h1 class="post-title">JDBC LOB Prefetching</h1>
+  <span class="post-date">20 Dec 2018</span>
+  <p>In Oracle JDBC version 11.2 LOB prefetching was introduced. The whole point of LOB prefetching is to reduce the number of roundtrips needed to get the LOB data.</p>
+
+<p>The goal of this post is to show how LOB prefetching works and point out which variables influence the optimal prefetch value.</p>
+
+<h2 id="basics-of-lob-access">Basics of LOB access</h2>
+<p>With JDBC driver versions older than 11.2 the behaviour when fetching LOB data is as follows: The client fetches the amount of rows, depending on the set fetch size. If the rows include a LOB column, the client is provided with a LOB locator, which is basically a pointer to the LOB in the database. There is no actual LOB data sent to the client at this point. At the point where the LOB is accessed, e.g. by calling <code>ResultSet.getClob</code>, the client requests the LOB metadata from the database (like LOB length and chunk size). Then in a second step, the LOB data is requested from the database.</p>
+
+<p>So, for every row 2 additional roundtrips are necessary to get the LOB data.</p>
+
+<p>Since JDBC version 11.2 LOB prefetching is available, which can minimize the number of roundtrips. It can be set on the <code>DataSource</code>, <code>Connection</code>, <code>Statement</code> or even on column level by using one of the overloaded methods <code>OracleStatement.defineColumnType</code>. Check the <a href="https://docs.oracle.com/en/database/oracle/oracle-database/12.2/jjdbc/performance-extensions.html#GUID-5E60A90D-3924-4228-948D-4A9219201D18">documentation</a> for more information.</p>
+
+<h2 id="lob-prefetching">LOB Prefetching</h2>
+<p>In JDBC version 11.2 the default value for LOB prefetching is <code>-1</code> which disables LOB prefetching. Since 12.1 the default is <code>4000</code>.</p>
+
+<h3 id="metadata-only">Metadata only</h3>
+<p>By setting LOB prefetching to <code>0</code>, you enable metadata prefetching. For every LOB column, the metadata is already fetched with the rest of the row data. This avoids one extra roundtrip for each row when accessing the LOB, as described earlier.</p>
+
+<h3 id="lob-prefetching-1">LOB prefetching</h3>
+<p>Any value higher than <code>0</code>, sets the amount of LOB data to be prefetched for each LOB. For CLOB data it defines how many characters, for BLOB data how many bytes that are prefetched. So for each LOB smaller than the set prefetch size, no additional round trip to the database is necessary.</p>
+
+<h2 id="performance">Performance</h2>
+<p>As already mentioned, the whole point of LOB prefetching is to reduce the number of round trips to the database to get the LOB data. To measure the runtime of a simple query in different scenarios, I created a small benchmark where I always fetch the same data, but the following parameters are varying:</p>
+
+<ul>
+  <li>Fetch size</li>
+  <li>LOB prefetch size</li>
+  <li>Network latency</li>
+</ul>
+
+<h3 id="benchmark">Benchmark</h3>
+<p>All tests are done with Oracle JDBC 18.3 and Oracle Database 18.3. I’m not aware of any changes to how LOB prefetch work since version 11.2, but memory management has changed in the 12c driver, so it’s probably worth to execute the benchmark on your own if you use driver version 11.2.</p>
+
+<p>First, we create a table with some LOB data</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">create</span> <span class="k">table</span> <span class="n">lobtest</span> <span class="p">(</span><span class="n">id</span> <span class="nb">number</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span> <span class="k">data</span> <span class="k">clob</span><span class="p">);</span>
+
+<span class="k">insert</span> <span class="k">into</span> <span class="n">lobtest</span>
+<span class="k">select</span> <span class="n">rownum</span><span class="p">,</span> <span class="n">lpad</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="mi">4000</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">)</span>
+<span class="k">from</span> <span class="n">dual</span>
+<span class="k">connect</span> <span class="k">by</span> <span class="n">rownum</span> <span class="o">&lt;=</span> <span class="mi">1000</span><span class="p">;</span>
+
+<span class="k">commit</span><span class="p">;</span></code></pre></figure>
+
+<p>The benchmark itself is done with JMH. The test class can be seen <a href="https://gist.github.com/TAregger/15faf1f539b10729c60906bb687470c6">here</a>, but here’s a wrap-up what’s going on there.</p>
+
+<p>For all combinations of benchmark parameters, the following steps are performed:</p>
+<ul>
+  <li>Fetch 1000 rows in total.</li>
+  <li>For every row, access all the data stored in the LOB column.</li>
+</ul>
+
+<p>The parameters are as follows:</p>
+<ul>
+  <li>LOB size: 4000 bytes.</li>
+  <li>Total rows: 1000.</li>
+  <li>Fetch size: 10, 100, 1000.</li>
+  <li>LOB Prefetch: -1 (disabled), 0 (metadata), 2000 (half of the LOB), 4000 (whole LOB).</li>
+  <li>Network latency: ~0.5ms, ~1.5ms. <em>See <a href="https://blog.aregger.io/simulating-network-latency-linux/">this</a> blog post on how to simulate network latency on Linux.</em></li>
+</ul>
+
+<h3 id="results">Results</h3>
+<h4 id="roundtrips">Roundtrips</h4>
+<p>Let’s first have a look at the number of roundtrips needed. The chart simply shows how many times the database waited for <code>SQL*Net message from client</code>.
+<img src="/assets/2018-12-20-jdbc-lob-prefetching/roundtrips.png" alt="Benchmark Roundtrips" /></p>
+
+<p>We see that</p>
+<ul>
+  <li>The number of roundtrips is cut in half by using metadata prefetching.</li>
+  <li>Prefetching just part of the LOB data, results in the same number of roundtrips as when we just prefetch the metadata. This is because in this benchmark the rest of the LOB is always fetched later on.</li>
+  <li>By prefetching all the LOB data, the number of roundtrips is greatly reduced and mainly driven by the row fetch size.</li>
+</ul>
+
+<h4 id="runtime">Runtime</h4>
+<p>We saw the impact the different scenarios have on the number of roundtrips. The following chart shows the average runtime out of 10 runs for the various scenarios.
+The benchmark was performed with 2 different average network latencies (~0.5ms and ~1.5ms).</p>
+
+<p><img src="/assets/2018-12-20-jdbc-lob-prefetching/runtime_4k.png" alt="Benchmark Runtime" />
+<em>Note that the runtime was obfuscated and does not correspond to a real unit of time. The lowest runtime is set to 1, and the others are aligned accordingly.</em></p>
+
+<p>We see that</p>
+<ul>
+  <li>The higher the latency, the bigger the impact of reducing the roundtrips by prefetching the LOBs.</li>
+  <li>Prefetching only a part of the LOB, and access the rest later is slower than only prefetching the LOB metadata. I tested it also by fetching BLOB instead of CLOB data and access it with <code>ResultSet.getBytes</code>. I suspect that’s because of some implementation detail in the JDBC driver and something that could change in the future.</li>
+</ul>
+
+<h3 id="benchmark-with-10mb-lobs">Benchmark with 10MB LOBs</h3>
+<p>To get a feeling for what impact the size of the LOB has, I did a second benchmark with the following parameters:</p>
+
+<ul>
+  <li>LOB size: 10 MB.</li>
+  <li>Total Rows: 100.</li>
+  <li>Fetch size: 10, 100.</li>
+  <li>LOB Prefetch: -1 (disabled), 0 (metadata), 8000 (part of the LOB), 10485760 (whole LOB).</li>
+  <li>Network latency: ~0.5ms.</li>
+</ul>
+
+<p>Here’s the result:
+<img src="/assets/2018-12-20-jdbc-lob-prefetching/runtime_10m.png" alt="Benchmark Runtime" />
+<em>Note that the runtime was obfuscated and does not correspond to a real unit of time.</em></p>
+
+<p>We see that</p>
+<ul>
+  <li>Metadata prefetching or prefetching just part of the LOB data, does not show any runtime improvements in this case.</li>
+  <li>Even though the improvement of fetching the whole LOB is not as big as with 4K LOB size, it’s still ~65% faster.</li>
+  <li>Bigger LOBs (and same network latency) will further diminish the relative performance improvement.</li>
+</ul>
+
+<h2 id="memory-consumption">Memory Consumption</h2>
+<p>I didn’t do any measurements on client-side memory consumption but you should be aware that row fetch size and lob prefetch size affect memory consumption.
+If you for example, set LOB prefetch size to <code>4000</code> and row fetch size to <code>1000</code>, the driver needs at least 10 times more memory than setting the fetch size to <code>100</code>.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+<ul>
+  <li>With high network latency and small LOBs, the benefit of LOB prefetching will be most noticeable.</li>
+  <li>The larger the LOBs get or the lower the network latency is, the less overall time is spent for the roundtrips and the benefit will be less significant.</li>
+  <li>Setting the optimal value for LOB prefetching depends on your LOB size (or to be more precise, the amount of LOB data that is accessed), the fraction of LOBs that are really accessed (e.g. only every 10th LOB in your result set is accessed), network latency, and last but not least on your memory constraints.</li>
+  <li>As many factors come into play when setting the optimal value, you have to test it under real conditions in your environment.</li>
+</ul>
+
+<h2 id="references">References</h2>
+<ul>
+  <li><a href="https://docs.oracle.com/en/database/oracle/oracle-database/12.2/jjdbc/performance-extensions.html#GUID-5E60A90D-3924-4228-948D-4A9219201D18">Oracle JDBC Guide about LOB prefetching</a></li>
+  <li><a href="https://gist.github.com/TAregger/15faf1f539b10729c60906bb687470c6">Benchmark code</a></li>
+</ul>
+
+
+</div>
+
+<a id="comments"></a>
+<div id="disqus_thread"></div>
+<script>
+
+var disqus_config = function () {
+this.page.url = "https://blog.aregger.io/jdbc-lob-prefetching/";  // Replace PAGE_URL with your page's canonical URL variable
+this.page.identifier = "/jdbc-lob-prefetching"; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://blog-aregger-io.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+                            
+
+    </div>
+
+  </body>
+</html>

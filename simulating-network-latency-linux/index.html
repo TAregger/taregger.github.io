@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+  <head>
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-78018626-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+  
+    gtag('config', 'UA-78018626-1');
+  </script>
+
+  <link href="http://gmpg.org/xfn/11" rel="profile">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+  <!-- Enable responsiveness on mobile devices-->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+  <title>
+    
+      Simulating network latency on Linux &middot; blog.aregger.io
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/public/css/poole.css">
+  <link rel="stylesheet" href="/public/css/syntax.css">
+  <link rel="stylesheet" href="/public/css/hyde.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400italic,700|Abril+Fatface">
+
+  <!-- Icons -->
+  <link rel="shortcut icon" href="/public/favicon.ico">
+
+  <!-- RSS -->
+  <link rel="alternate" type="application/rss+xml" title="RSS" href="/atom.xml">
+
+  <!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Simulating network latency on Linux | blog.aregger.io</title>
+<meta name="generator" content="Jekyll v3.8.6" />
+<meta property="og:title" content="Simulating network latency on Linux" />
+<meta name="author" content="Thomas Aregger" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="If you want to run test cases that are sensitive to network latency, it’s important to also test them under the effect of different latencies. For example you want to know what it means if you move an application currently running on the same server as the database to a different server. Or you are doing some small tests locally on your computer and want to know how they would behave in a real environment where client and server are on different machines, maybe even with long geographical distances between them." />
+<meta property="og:description" content="If you want to run test cases that are sensitive to network latency, it’s important to also test them under the effect of different latencies. For example you want to know what it means if you move an application currently running on the same server as the database to a different server. Or you are doing some small tests locally on your computer and want to know how they would behave in a real environment where client and server are on different machines, maybe even with long geographical distances between them." />
+<link rel="canonical" href="https://blog.aregger.io/simulating-network-latency-linux/" />
+<meta property="og:url" content="https://blog.aregger.io/simulating-network-latency-linux/" />
+<meta property="og:site_name" content="blog.aregger.io" />
+<meta property="og:image" content="https://blog.aregger.io/assets/2018-12-16-simulating-network-latency-linux/thumbnail.png" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2018-12-16T00:00:00+01:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:image" content="https://blog.aregger.io/assets/2018-12-16-simulating-network-latency-linux/thumbnail.png" />
+<meta property="twitter:title" content="Simulating network latency on Linux" />
+<meta name="twitter:site" content="@taregger" />
+<meta name="twitter:creator" content="@taregger" />
+<script type="application/ld+json">
+{"datePublished":"2018-12-16T00:00:00+01:00","image":"https://blog.aregger.io/assets/2018-12-16-simulating-network-latency-linux/thumbnail.png","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/simulating-network-latency-linux/"},"url":"https://blog.aregger.io/simulating-network-latency-linux/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"If you want to run test cases that are sensitive to network latency, it’s important to also test them under the effect of different latencies. For example you want to know what it means if you move an application currently running on the same server as the database to a different server. Or you are doing some small tests locally on your computer and want to know how they would behave in a real environment where client and server are on different machines, maybe even with long geographical distances between them.","headline":"Simulating network latency on Linux","dateModified":"2018-12-16T00:00:00+01:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+
+  <body>
+
+    <div class="sidebar">
+  <div class="container sidebar-sticky">
+    <div class="sidebar-about">
+      <h1>
+        <a href="/">
+	  blog. aregger.io
+        </a>
+      </h1>
+      <p class="lead">A blog about Oracle, SQL and Java</p>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="sidebar-nav-item" href="/">Home</a>
+
+      
+
+      
+      
+        
+          
+        
+      
+        
+          
+            <a class="sidebar-nav-item" href="/about/">About</a>
+          
+        
+      
+        
+          
+            <a class="sidebar-nav-item" href="/archive/">Archive</a>
+          
+        
+      
+        
+      
+        
+          
+        
+      
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+      
+        
+      
+
+    </nav>
+
+    <div class="sidebar-nav-social">
+      <a href="https://twitter.com/taregger">
+        <img src="/public/twitter.png" alt="twitter" height="32" width="32">
+      </a>
+    </div>
+
+    <!-- 
+    <p>&copy; 2019. All rights reserved.</p>
+    -->
+  </div>
+</div>
+
+
+    <div class="content container">
+      <div class="post">
+  <h1 class="post-title">Simulating network latency on Linux</h1>
+  <span class="post-date">16 Dec 2018</span>
+  <p>If you want to run test cases that are sensitive to network latency, it’s important to also test them under the effect of different latencies.
+For example you want to know what it means if you move an application currently running on the same server as the database to a different server. Or you are doing some small tests locally on your computer and want to know how they would behave in a real environment where client and server are on different machines, maybe even with long geographical distances between them.</p>
+
+<p>I usually use the method described here when I want to run some tests on my laptop where I have an Oracle Database running in a Virtualbox VM.</p>
+
+<p>Linux provides a kernel module called NetEm (Network Emulator). With NetEm you can add a delay to all packages leaving (outgoing) a certain network interface. You can do a lot more things with NetEm like duplicating, corrupting or reordering packages and more. Check the man page or the links at the end of this post to find out more about it.</p>
+
+<p>NetEm is an enhancement of the Linux traffic control facilities and can therefore be controlled with <code>tc</code>.</p>
+
+<h2 id="using-the-tc-command-line-tool-to-add-a-delay">Using the tc command line tool to add a delay</h2>
+
+<p>Add a delay of 10ms to eth1</p>
+<pre><code>tc qdisc add dev eth1 root netem delay 10ms
+</code></pre>
+
+<p>Change an already configured delay</p>
+<pre><code>tc qdisc change dev eth1 root netem delay 5ms
+</code></pre>
+
+<p>Show configuration of eth1</p>
+<pre><code>tc qdisc show dev eth1
+</code></pre>
+
+<p>Remove a configured delay</p>
+<pre><code>tc qdisc del dev eth1 root netem delay 4ms
+</code></pre>
+
+<h2 id="example">Example</h2>
+<p>I’m just going to ping my virtual machine and add a delay after a couple of pings.</p>
+
+<p>Ping my virtual machine from my local machine</p>
+<pre><code>ping oracle-database-183
+</code></pre>
+
+<p>Add delay of 10ms on eth1 on my virtual machine. This means the packages leaving eth1 (in this examples the answers to the ping) will be delayed by 10ms.</p>
+<pre><code>tc qdisc add dev eth1 root netem delay 10ms
+</code></pre>
+
+<p>Output of ping</p>
+<pre><code>PING oracle-database-183 (192.168.56.202): 56 data bytes
+64 bytes from 192.168.56.202: icmp_seq=0 ttl=64 time=0.255 ms
+64 bytes from 192.168.56.202: icmp_seq=1 ttl=64 time=0.376 ms
+64 bytes from 192.168.56.202: icmp_seq=2 ttl=64 time=0.329 ms
+64 bytes from 192.168.56.202: icmp_seq=3 ttl=64 time=0.336 ms
+64 bytes from 192.168.56.202: icmp_seq=4 ttl=64 time=0.310 ms
+64 bytes from 192.168.56.202: icmp_seq=5 ttl=64 time=10.870 ms
+64 bytes from 192.168.56.202: icmp_seq=6 ttl=64 time=10.992 ms
+64 bytes from 192.168.56.202: icmp_seq=7 ttl=64 time=10.910 ms
+64 bytes from 192.168.56.202: icmp_seq=8 ttl=64 time=10.900 ms
+64 bytes from 192.168.56.202: icmp_seq=9 ttl=64 time=10.790 ms
+</code></pre>
+
+<p>The output of ping clearly shows the effect of adding the delay with tc.</p>
+
+<h2 id="references">References</h2>
+<ul>
+  <li><a href="https://community.oracle.com/docs/DOC-1007578">Oracle Community article</a></li>
+  <li><a href="https://wiki.linuxfoundation.org/networking/netem">Linux Foundation Wiki</a></li>
+  <li><a href="http://man7.org/linux/man-pages/man8/tc-netem.8.html">man page</a></li>
+</ul>
+
+
+</div>
+
+<a id="comments"></a>
+<div id="disqus_thread"></div>
+<script>
+
+var disqus_config = function () {
+this.page.url = "https://blog.aregger.io/simulating-network-latency-linux/";  // Replace PAGE_URL with your page's canonical URL variable
+this.page.identifier = "/simulating-network-latency-linux"; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://blog-aregger-io.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+                            
+
+    </div>
+
+  </body>
+</html>

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+  <head>
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-78018626-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+  
+    gtag('config', 'UA-78018626-1');
+  </script>
+
+  <link href="http://gmpg.org/xfn/11" rel="profile">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+  <!-- Enable responsiveness on mobile devices-->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+  <title>
+    
+      SGA areas in x$ksmmem &middot; blog.aregger.io
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/public/css/poole.css">
+  <link rel="stylesheet" href="/public/css/syntax.css">
+  <link rel="stylesheet" href="/public/css/hyde.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400italic,700|Abril+Fatface">
+
+  <!-- Icons -->
+  <link rel="shortcut icon" href="/public/favicon.ico">
+
+  <!-- RSS -->
+  <link rel="alternate" type="application/rss+xml" title="RSS" href="/atom.xml">
+
+  <!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>SGA areas in x$ksmmem | blog.aregger.io</title>
+<meta name="generator" content="Jekyll v3.8.6" />
+<meta property="og:title" content="SGA areas in x$ksmmem" />
+<meta name="author" content="Thomas Aregger" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="The fixed table x$ksmmem (Kernel Layer, Service Layer, Memory Management, MEMory) is basically a memory map of your SGA. It contains a row for each memory address (addr) and the value stored at this location (ksmmmval). This post shows which areas were accessible over this structure in older versions of Oracle, and more importantly, which areas are not present anymore in more recent versions." />
+<meta property="og:description" content="The fixed table x$ksmmem (Kernel Layer, Service Layer, Memory Management, MEMory) is basically a memory map of your SGA. It contains a row for each memory address (addr) and the value stored at this location (ksmmmval). This post shows which areas were accessible over this structure in older versions of Oracle, and more importantly, which areas are not present anymore in more recent versions." />
+<link rel="canonical" href="https://blog.aregger.io/2019/03/18/sga-areas-in-x$ksmmem/" />
+<meta property="og:url" content="https://blog.aregger.io/2019/03/18/sga-areas-in-x$ksmmem/" />
+<meta property="og:site_name" content="blog.aregger.io" />
+<meta property="og:image" content="https://blog.aregger.io/public/twitter_default_card.png" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2019-03-18T00:00:00+01:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:image" content="https://blog.aregger.io/public/twitter_default_card.png" />
+<meta property="twitter:title" content="SGA areas in x$ksmmem" />
+<meta name="twitter:site" content="@taregger" />
+<meta name="twitter:creator" content="@taregger" />
+<script type="application/ld+json">
+{"datePublished":"2019-03-18T00:00:00+01:00","image":"https://blog.aregger.io/public/twitter_default_card.png","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/2019/03/18/sga-areas-in-x$ksmmem/"},"url":"https://blog.aregger.io/2019/03/18/sga-areas-in-x$ksmmem/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"The fixed table x$ksmmem (Kernel Layer, Service Layer, Memory Management, MEMory) is basically a memory map of your SGA. It contains a row for each memory address (addr) and the value stored at this location (ksmmmval). This post shows which areas were accessible over this structure in older versions of Oracle, and more importantly, which areas are not present anymore in more recent versions.","headline":"SGA areas in x$ksmmem","dateModified":"2019-03-18T00:00:00+01:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+
+  <body>
+
+    <div class="sidebar">
+  <div class="container sidebar-sticky">
+    <div class="sidebar-about">
+      <h1>
+        <a href="/">
+	  blog. aregger.io
+        </a>
+      </h1>
+      <p class="lead">A blog about Oracle, SQL and Java</p>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="sidebar-nav-item" href="/">Home</a>
+
+      
+
+      
+      
+        
+          
+        
+      
+        
+          
+            <a class="sidebar-nav-item" href="/about/">About</a>
+          
+        
+      
+        
+          
+            <a class="sidebar-nav-item" href="/archive/">Archive</a>
+          
+        
+      
+        
+      
+        
+          
+        
+      
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+      
+        
+      
+
+    </nav>
+
+    <div class="sidebar-nav-social">
+      <a href="https://twitter.com/taregger">
+        <img src="/public/twitter.png" alt="twitter" height="32" width="32">
+      </a>
+    </div>
+
+    <!-- 
+    <p>&copy; 2019. All rights reserved.</p>
+    -->
+  </div>
+</div>
+
+
+    <div class="content container">
+      <div class="post">
+  <h1 class="post-title">SGA areas in x$ksmmem</h1>
+  <span class="post-date">18 Mar 2019</span>
+  <p>The fixed table <code>x$ksmmem</code> (<strong>K</strong>ernel Layer, <strong>S</strong>ervice Layer, <strong>M</strong>emory Management, <strong>MEM</strong>ory) is basically a memory map of your SGA. It contains a row for each memory address (<code>addr</code>) and the value stored at this location (<code>ksmmmval</code>). This post shows which areas were accessible over this structure in older versions of Oracle, and more importantly, which areas are not present anymore in more recent versions.</p>
+
+<p>In all examples ASMM is enabled, AMM disabled and platform is Linux x86_64.</p>
+
+<h2 id="version-112">Version 11.2</h2>
+<p>Let’s first have a look at the shared memory segments allocated by Oracle.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="n">oradebug</span> <span class="n">setmypid</span>
+<span class="n">oradebug</span> <span class="n">ipc</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>...
+ Area #0 `Fixed Size&#39; containing Subareas 0-0
+  Total size 0000000000221a50 Minimum Subarea size 00000000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      0        0    32768 0x00000060000000 0x00000060000000
+                              Subarea size     Segment size
+                          0000000000222000 0000000008c00000
+ Area #1 `Variable Size&#39; containing Subareas 4-4
+  Total size 0000000035c00000 Minimum Subarea size 00400000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      1        4    65537 0x00000068c00000 0x00000068c00000
+                              Subarea size     Segment size
+                          0000000035c00000 0000000035c00000
+ Area #2 `Redo Buffers&#39; containing Subareas 1-1
+  Total size 0000000008565000 Minimum Subarea size 00000000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      2        1    32768 0x00000060222000 0x00000060222000
+                              Subarea size     Segment size
+                          0000000008565000 0000000008c00000
+ Area #3 `Base Allocator Control&#39; containing Subareas 3-3
+  Total size 0000000000002000 Minimum Subarea size 00000000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      3        3    32768 0x00000068bfe000 0x00000068bfe000
+                              Subarea size     Segment size
+                          0000000000002000 0000000008c00000
+ Area #4 `Slab Allocator Control&#39; containing Subareas 2-2
+  Total size 0000000000477000 Minimum Subarea size 00000000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      4        2    32768 0x00000068787000 0x00000068787000
+                              Subarea size     Segment size
+                          0000000000477000 0000000008c00000
+ Area #5 `skgm overhead&#39; containing Subareas 5-5
+  Total size 0000000000003000 Minimum Subarea size 00000000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      5        5    98306 0x0000009e800000 0x0000009e800000
+                              Subarea size     Segment size
+                          0000000000003000 0000000000200000
+...</code></pre></figure>
+
+<p>As we can see, there are 3 different segments allocated (Shmid 32768, 65537 and 98306).</p>
+
+<p>By taking the values from <em>Actual Addr</em> as the start address and <em>Actual Addr</em> + <em>Total size</em>  as the end address, we can write a simple query to see which areas are externalized in <code>x$ksmmem</code>.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="n">area</span><span class="p">,</span> <span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span> <span class="k">from</span> <span class="p">(</span>
+ <span class="k">select</span>
+  <span class="k">case</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000060000000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;0000000060221A50&#39;</span>
+   <span class="k">then</span> <span class="s1">&#39;Fixed Size&#39;</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000068C00000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;000000009E800000&#39;</span>
+   <span class="k">then</span> <span class="s1">&#39;Variable Size&#39;</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000060222000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;0000000068787000&#39;</span> 
+   <span class="k">then</span> <span class="s1">&#39;Redo Buffers&#39;</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000068BFE000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;0000000068C00000&#39;</span> 
+   <span class="k">then</span> <span class="s1">&#39;Base Allocator Control&#39;</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000068787000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;0000000068BFE000&#39;</span> 
+   <span class="k">then</span> <span class="s1">&#39;Slab Allocator Control&#39;</span> 
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;000000009E800000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;000000009E803000&#39;</span> 
+   <span class="k">then</span> <span class="s1">&#39;skgm overhead&#39;</span>
+  <span class="k">end</span> <span class="k">as</span> <span class="n">area</span>
+ <span class="k">from</span> <span class="n">x$ksmmem</span><span class="p">)</span>
+<span class="k">group</span> <span class="k">by</span> <span class="n">area</span><span class="p">;</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>AREA                     COUNT(*)
+---------------------- ----------
+Redo Buffers             17484288
+Slab Allocator Control     585216
+Variable Size           112135680
+Base Allocator Control       1024
+Fixed Size                 279370
+
+5 rows selected.</code></pre></figure>
+
+<p>As can be seen, all SGA areas except <em>skgm overhead</em> can be accessed over this table.</p>
+
+<h2 id="version-183">Version 18.3</h2>
+<p>Let’s do the same thing in 18.3.</p>
+
+<p>Instead of listing the shared memory segments via <code>oradebug ipc</code> we can query the new fixed table <code>x$ksmssinfo</code> (Probably a mnemonic for (<strong>K</strong>ernel Layer, <strong>S</strong>ervice Layer, <strong>M</strong>emory Management, <strong>S</strong>hared Memory <strong>S</strong>egment <strong>INFO</strong>).</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span>
+ <span class="ss">&quot;AREA NAME&quot;</span><span class="p">,</span>
+ <span class="ss">&quot;START ADDR&quot;</span><span class="p">,</span>
+ <span class="n">to_char</span><span class="p">(</span>
+  <span class="n">to_number</span><span class="p">(</span><span class="ss">&quot;START ADDR&quot;</span><span class="p">,</span> <span class="n">rpad</span><span class="p">(</span><span class="s1">&#39;X&#39;</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="s1">&#39;X&#39;</span><span class="p">))</span> <span class="o">+</span> <span class="ss">&quot;SIZE&quot;</span><span class="p">,</span>
+  <span class="n">rpad</span><span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="s1">&#39;X&#39;</span><span class="p">)</span>
+ <span class="p">)</span> <span class="k">as</span> <span class="n">END_ADDR</span><span class="p">,</span>
+ <span class="ss">&quot;SIZE&quot;</span>
+<span class="k">from</span> <span class="n">x$ksmssinfo</span><span class="p">;</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>AREA NAME                        START ADDR       END_ADDR                SIZE
+-------------------------------- ---------------- ----------------- ----------
+Variable Size                    0000000060C00000  0000000096400000  897581056
+Redo Buffers                     0000000096400000  000000009EBBC000  142327808
+Fixed Size                       0000000060000000  0000000060844000    8667136
+skgm overhead                    000000009EC00000  000000009EC05000      20480</code></pre></figure>
+
+<p>We execute the same query as before, with only the start and end addresses changed.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="n">area</span><span class="p">,</span> <span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span> <span class="k">from</span> <span class="p">(</span>
+ <span class="k">select</span>
+  <span class="k">case</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000060000000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;0000000060844000&#39;</span>
+   <span class="k">then</span> <span class="s1">&#39;Fixed Size&#39;</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000060C00000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;0000000096400000&#39;</span>
+   <span class="k">then</span> <span class="s1">&#39;Variable Size&#39;</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000096400000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;000000009EBBC000&#39;</span> 
+   <span class="k">then</span> <span class="s1">&#39;Redo Buffers&#39;</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;000000009EC00000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;000000009EC05000&#39;</span> 
+   <span class="k">then</span> <span class="s1">&#39;skgm overhead&#39;</span>
+  <span class="k">end</span> <span class="k">as</span> <span class="n">area</span>
+ <span class="k">from</span> <span class="n">x$ksmmem</span><span class="p">)</span>
+<span class="k">group</span> <span class="k">by</span> <span class="n">area</span><span class="p">;</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="n">AREA</span>            <span class="k">COUNT</span><span class="p">(</span><span class="o">*</span><span class="p">)</span>
+<span class="c1">------------- ----------</span>
+<span class="n">Fixed</span> <span class="k">Size</span>       <span class="mi">1083204</span></code></pre></figure>
+
+<p>As can be seen, in Oracle 18.3 only the <em>Fixed Size</em> area is externalized in <code>x$ksmmem</code>. In fact, this is the case since bug 19363432 (introduced in 12.1) has been fixed later in Oracle 12.1.</p>
+
+<p>The behavior in Oracle 12.1 before applying the bugfix, is that <code>x$ksmmem</code> also displays addresses which are not currently mapped. This leads to segmentation faults when you try to access this memory location by referring to <code>x$ksmmem.ksmmmval</code>. Unfortunately, after applying the bugfix, all areas except <em>Fixed Size</em> disappear from this fixed table.</p>
+
+<h2 id="alternatives">Alternatives</h2>
+<p>In some cases, you want to have access to the contents of shared memory for troubleshooting. <code>x$ksmmem</code> provided a convenient way to do so, because you could use it in any query (e.g. by joining to other fixed views/tables containing memory addresses). Of course, you can still use <code>oradebug peek</code> or any other tool you like, but it’s definitely more cumbersome.</p>
+
+
+</div>
+
+<a id="comments"></a>
+<div id="disqus_thread"></div>
+<script>
+
+var disqus_config = function () {
+this.page.url = "https://blog.aregger.io/2019/03/18/sga-areas-in-x$ksmmem/";  // Replace PAGE_URL with your page's canonical URL variable
+this.page.identifier = "/2019/03/18/sga-areas-in-x$ksmmem"; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://blog-aregger-io.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+                            
+
+    </div>
+
+  </body>
+</html>

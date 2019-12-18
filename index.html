@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+  <head>
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-78018626-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+  
+    gtag('config', 'UA-78018626-1');
+  </script>
+
+  <link href="http://gmpg.org/xfn/11" rel="profile">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+  <!-- Enable responsiveness on mobile devices-->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+  <title>
+    
+      blog.aregger.io
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/public/css/poole.css">
+  <link rel="stylesheet" href="/public/css/syntax.css">
+  <link rel="stylesheet" href="/public/css/hyde.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400italic,700|Abril+Fatface">
+
+  <!-- Icons -->
+  <link rel="shortcut icon" href="/public/favicon.ico">
+
+  <!-- RSS -->
+  <link rel="alternate" type="application/rss+xml" title="RSS" href="/atom.xml">
+
+  <!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Home | blog.aregger.io</title>
+<meta name="generator" content="Jekyll v3.8.6" />
+<meta property="og:title" content="Home" />
+<meta name="author" content="Thomas Aregger" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="A blog about Oracle, SQL and Java" />
+<meta property="og:description" content="A blog about Oracle, SQL and Java" />
+<link rel="canonical" href="https://blog.aregger.io/" />
+<meta property="og:url" content="https://blog.aregger.io/" />
+<meta property="og:site_name" content="blog.aregger.io" />
+<link rel="next" href="https://blog.aregger.io/page2" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Home" />
+<meta name="twitter:site" content="@taregger" />
+<meta name="twitter:creator" content="@taregger" />
+<script type="application/ld+json">
+{"url":"https://blog.aregger.io/","name":"blog.aregger.io","author":{"@type":"Person","name":"Thomas Aregger"},"description":"A blog about Oracle, SQL and Java","headline":"Home","@type":"WebSite","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+
+  <body>
+
+    <div class="sidebar">
+  <div class="container sidebar-sticky">
+    <div class="sidebar-about">
+      <h1>
+        <a href="/">
+	  blog. aregger.io
+        </a>
+      </h1>
+      <p class="lead">A blog about Oracle, SQL and Java</p>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="sidebar-nav-item active" href="/">Home</a>
+
+      
+
+      
+      
+        
+          
+        
+      
+        
+          
+            <a class="sidebar-nav-item" href="/about/">About</a>
+          
+        
+      
+        
+          
+            <a class="sidebar-nav-item" href="/archive/">Archive</a>
+          
+        
+      
+        
+      
+        
+          
+        
+      
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+      
+        
+      
+
+    </nav>
+
+    <div class="sidebar-nav-social">
+      <a href="https://twitter.com/taregger">
+        <img src="/public/twitter.png" alt="twitter" height="32" width="32">
+      </a>
+    </div>
+
+    <!-- 
+    <p>&copy; 2019. All rights reserved.</p>
+    -->
+  </div>
+</div>
+
+
+    <div class="content container">
+      <div class="posts">
+  
+  <div class="post">
+    <h1 class="post-title">
+      <a href="/2019/12/12/reported-sql-plan-line-id-and-adaptive-plans/">
+        Reported SQL Plan Line ID and Adaptive Plans
+      </a>
+    </h1>
+
+    <span class="post-date">12 Dec 2019</span>
+
+    <p>If no real time SQL monitor report is available I often sample <code>v$session</code> or do aggregations over <code>v$active_session_history</code> or <code>dba_hist_active_sess_history</code> and group by the column <code>sql_plan_line_id</code> to find out where most of the time is spent.</p>
+
+<p>This blog post shows that you should be aware of whether or not an adaptive plan is used when using this data. So, let’s create a small demo.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">create</span> <span class="k">table</span> <span class="n">t1</span> <span class="p">(</span><span class="n">c1</span> <span class="nb">number</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span> <span class="n">c2</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">4000</span><span class="p">));</span>
+<span class="k">create</span> <span class="k">table</span> <span class="n">t2</span> <span class="p">(</span><span class="n">c1</span> <span class="nb">number</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span> <span class="n">c2</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">4000</span><span class="p">));</span>
+
+<span class="k">create</span> <span class="k">index</span> <span class="n">i1</span> <span class="k">on</span> <span class="n">t1</span><span class="p">(</span><span class="n">c1</span><span class="p">);</span>
+<span class="k">create</span> <span class="k">index</span> <span class="n">i2</span> <span class="k">on</span> <span class="n">t2</span><span class="p">(</span><span class="n">c1</span><span class="p">);</span>
+
+
+<span class="k">insert</span> <span class="k">into</span> <span class="n">t1</span> 
+  <span class="k">select</span> <span class="n">trunc</span><span class="p">(</span><span class="n">dbms_random</span><span class="p">.</span><span class="n">value</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)),</span> <span class="n">lpad</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="mi">4000</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">)</span>
+  <span class="k">from</span> <span class="n">dual</span> <span class="k">connect</span> <span class="k">by</span> <span class="n">rownum</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="n">e5</span><span class="p">;</span>
+
+<span class="k">insert</span> <span class="k">into</span> <span class="n">t2</span> 
+  <span class="k">select</span> <span class="n">trunc</span><span class="p">(</span><span class="n">dbms_random</span><span class="p">.</span><span class="n">value</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">100000</span><span class="p">)),</span> <span class="n">lpad</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="mi">4000</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">)</span>
+  <span class="k">from</span> <span class="n">dual</span> <span class="k">connect</span> <span class="k">by</span> <span class="n">rownum</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="n">e5</span><span class="p">;</span>
+
+<span class="k">commit</span><span class="p">;</span>
+
+<span class="k">exec</span> <span class="n">dbms_stats</span><span class="p">.</span><span class="n">gather_table_stats</span><span class="p">(</span><span class="k">user</span><span class="p">,</span> <span class="s1">&#39;T1&#39;</span><span class="p">);</span>
+<span class="k">exec</span> <span class="n">dbms_stats</span><span class="p">.</span><span class="n">gather_table_stats</span><span class="p">(</span><span class="k">user</span><span class="p">,</span> <span class="s1">&#39;T2&#39;</span><span class="p">);</span></code></pre></figure>
+
+<p>Now let’s display the execution plan of a simple query joining the two tables:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">explain</span> <span class="n">plan</span> <span class="k">for</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">join</span> <span class="n">t2</span> <span class="k">on</span> <span class="p">(</span><span class="n">t1</span><span class="p">.</span><span class="n">c1</span> <span class="o">=</span> <span class="n">t2</span><span class="p">.</span><span class="n">c1</span><span class="p">);</span>
+
+<span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display</span><span class="p">(</span><span class="n">format</span> <span class="o">=&gt;</span><span class="s1">&#39;BASIC +NOTE&#39;</span><span class="p">));</span></code></pre></figure>
+
+<p>This is the plan Oracle came up with:</p>
+
+<pre><code>Plan hash value: 1838229974
+
+-----------------------------------
+| Id  | Operation          | Name |
+-----------------------------------
+|   0 | SELECT STATEMENT   |      |
+|   1 |  HASH JOIN         |      |
+|   2 |   TABLE ACCESS FULL| T1   |
+|   3 |   TABLE ACCESS FULL| T2   |
+-----------------------------------
+
+Note
+-----
+   - this is an adaptive plan
+
+</code></pre>
+
+<p>Now we execute the query:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">join</span> <span class="n">t2</span> <span class="k">on</span> <span class="p">(</span><span class="n">t1</span><span class="p">.</span><span class="n">c1</span> <span class="o">=</span> <span class="n">t2</span><span class="p">.</span><span class="n">c1</span><span class="p">);</span></code></pre></figure>
+
+<p>The query returns 0 rows as the generated numbers in the join columns are not overlapping. In my case it ran for about 6 seconds. I then used the following query to get a rough idea where in the execution plan Oracle spent most of the time.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span>
+  <span class="n">sql_plan_hash_value</span><span class="p">,</span>
+  <span class="n">sql_plan_line_id</span><span class="p">,</span>
+  <span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span>
+<span class="k">from</span> <span class="n">v$active_session_history</span>
+<span class="k">where</span> <span class="n">session_id</span> <span class="o">=</span> <span class="n">sys_context</span><span class="p">(</span><span class="s1">&#39;userenv&#39;</span><span class="p">,</span><span class="s1">&#39;sid&#39;</span><span class="p">)</span>
+  <span class="k">and</span> <span class="n">sample_time</span> <span class="o">&gt;</span> <span class="n">sysdate</span> <span class="o">-</span> <span class="nb">interval</span> <span class="s1">&#39;10&#39;</span> <span class="k">second</span>
+<span class="k">group</span> <span class="k">by</span> <span class="n">sql_id</span><span class="p">,</span>
+  <span class="n">sql_plan_hash_value</span><span class="p">,</span>
+  <span class="n">sql_plan_line_id</span><span class="p">;</span></code></pre></figure>
+
+<p>Here’s the output:</p>
+
+<pre><code>SQL_PLAN_HASH_VALUE SQL_PLAN_LINE_ID   COUNT(*)
+------------------- ---------------- ----------
+         1838229974                1          4
+         1838229974                8          2
+
+</code></pre>
+
+<p>Oracle reports two samples where it spent time on plan line id 8, but in the execution plan there is no such plan line id. As the plan is an adaptive plan, it’s pretty obvious that this must be the issue here. So we display the plan with the <code>ADAPTIVE</code> formatting option, which also displays skipped operations.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display</span><span class="p">(</span><span class="n">format</span> <span class="o">=&gt;</span><span class="s1">&#39;BASIC +NOTE +ADAPTIVE&#39;</span><span class="p">));</span></code></pre></figure>
+
+<pre><code>Plan hash value: 1838229974
+
+----------------------------------------------
+| Id  | Operation                     | Name |
+----------------------------------------------
+|   0 | SELECT STATEMENT              |      |
+|   1 |  HASH JOIN                    |      |
+|-  2 |   NESTED LOOPS                |      |
+|-  3 |    NESTED LOOPS               |      |
+|-  4 |     STATISTICS COLLECTOR      |      |
+|   5 |      TABLE ACCESS FULL        | T1   |
+|-  6 |     INDEX RANGE SCAN          | I2   |
+|-  7 |    TABLE ACCESS BY INDEX ROWID| T2   |
+|   8 |   TABLE ACCESS FULL           | T2   |
+----------------------------------------------
+
+Note
+-----
+   - this is an adaptive plan (rows marked '-' are inactive)
+</code></pre>
+
+<p>Whether or not an operation is skipped in a specific execution plan is stored in the <code>other_xml</code> column of <code>v$sql_plan</code>. Therefore we could extract this information to get a mapping between the reported plan line ids and the plan line ids shown in the execution plan 
+when calling the <code>dbms_xplan.display*</code> functions without the <code>ADAPTIVE</code> formatting option.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">with</span> <span class="n">plan_line_ids</span> <span class="k">as</span> <span class="p">(</span> 
+  <span class="k">select</span> <span class="n">extractvalue</span><span class="p">(</span><span class="n">value</span><span class="p">(</span><span class="n">ops</span><span class="p">),</span> <span class="s1">&#39;/row/@op&#39;</span><span class="p">)</span>  <span class="n">op</span><span class="p">,</span> 
+         <span class="n">extractvalue</span><span class="p">(</span><span class="n">value</span><span class="p">(</span><span class="n">ops</span><span class="p">),</span> <span class="s1">&#39;/row/@skp&#39;</span><span class="p">)</span> <span class="n">skip</span> 
+  <span class="k">from</span> <span class="k">table</span> <span class="p">(</span> 
+    <span class="k">select</span> <span class="n">xmlsequence</span><span class="p">(</span><span class="k">extract</span><span class="p">(</span><span class="n">xmltype</span><span class="p">(</span><span class="n">other_xml</span><span class="p">),</span> <span class="s1">&#39;/*/display_map/row&#39;</span><span class="p">))</span> 
+    <span class="k">from</span> <span class="n">v$sql_plan</span> 
+    <span class="c1">-- change plan_hash_value and child_number</span>
+    <span class="k">where</span> <span class="n">plan_hash_value</span> <span class="o">=</span> <span class="mi">1838229974</span> <span class="k">and</span> <span class="n">child_number</span> <span class="o">=</span> <span class="mi">0</span> 
+    <span class="k">and</span> <span class="n">other_xml</span> <span class="k">is</span> <span class="k">not</span> <span class="k">null</span>
+  <span class="p">)</span> <span class="n">ops</span>
+<span class="p">)</span> 
+<span class="k">select</span> <span class="n">o</span><span class="p">.</span><span class="n">op</span> <span class="k">as</span> <span class="n">plan_line_id_adaptive</span><span class="p">,</span> 
+  <span class="n">o</span><span class="p">.</span><span class="n">op</span> <span class="o">-</span> <span class="p">(</span> 
+    <span class="k">select</span> <span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span> 
+    <span class="k">from</span> <span class="n">plan_line_ids</span> <span class="n">i</span> 
+    <span class="k">where</span> <span class="n">i</span><span class="p">.</span><span class="n">op</span> <span class="o">&lt;=</span> <span class="n">o</span><span class="p">.</span><span class="n">op</span> <span class="k">and</span> <span class="n">i</span><span class="p">.</span><span class="n">skip</span> <span class="o">=</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="n">plan_line_id</span> 
+<span class="k">from</span> <span class="n">plan_line_ids</span> <span class="n">o</span> 
+<span class="k">where</span>  <span class="n">o</span><span class="p">.</span><span class="n">skip</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span><span class="p">;</span></code></pre></figure>
+
+<p>Output:</p>
+<pre><code>PLAN_LINE_ID_ADAPTIVE     PLAN_LINE_ID
+------------------------- ------------
+1                                    1
+5                                    2
+8                                    3
+</code></pre>
+
+<h2 id="conclusion">Conclusion</h2>
+<p>This demo showed an example where it was obvious that there’s something wrong, because the reported plan line id simply didn’t exist in the plan. Depending on the reported line ids it is not necessarily obvious at first. So if you’re using the <code>sql_plan_line_id</code> from <code>v$session</code>, <code>v$active_session_history</code> or <code>dba_hist_active_sess_history</code> to determine where in the execution plan Oracle is spending time, always make sure to check whether you’re looking at an adaptive plan or not.</p>
+
+
+    <a href="/2019/12/12/reported-sql-plan-line-id-and-adaptive-plans/#comments">Comment</a>
+  </div>
+  
+  <div class="post">
+    <h1 class="post-title">
+      <a href="/2019/08/07/plsql_package_types_in_jdbc/">
+        PL/SQL Package Types in JDBC
+      </a>
+    </h1>
+
+    <span class="post-date">07 Aug 2019</span>
+
+    <p>Let’s suppose you have the following PL/SQL package source:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">create</span> <span class="k">or</span> <span class="k">replace</span> <span class="n">package</span> <span class="n">my_pkg</span> <span class="k">is</span>
+   <span class="k">type</span> <span class="n">t_varchar2_300</span> <span class="k">is</span> <span class="k">table</span> <span class="k">of</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">200</span><span class="p">);</span>
+<span class="k">end</span><span class="p">;</span>
+<span class="o">/</span></code></pre></figure>
+
+<p>In older versions of Oracle if you tried to use the type <code>t_varchar2_300</code> in Java you got an exception.</p>
+
+<figure class="highlight"><pre><code class="language-java" data-lang="java"><span></span><span class="n">Array</span> <span class="n">myArray</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">createOracleArray</span><span class="o">(</span><span class="s">&quot;MY_PKG.T_VARCHAR2_300&quot;</span><span class="o">,</span>
+  <span class="k">new</span> <span class="n">String</span><span class="o">[]{</span><span class="s">&quot;X&quot;</span><span class="o">,</span> <span class="s">&quot;Y&quot;</span><span class="o">});</span>
+
+<span class="n">var</span> <span class="n">stmt</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">prepareStatement</span><span class="o">(</span><span class="s">&quot;select ...&quot;</span><span class="o">);</span>
+<span class="n">stmt</span><span class="o">.</span><span class="na">setArray</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">myArray</span><span class="o">);</span>
+
+<span class="n">stmt</span><span class="o">.</span><span class="na">executeQuery</span><span class="o">();</span></code></pre></figure>
+
+<p>This would throw <code>java.sql.SQLException: invalid name pattern: MY_PKG.T_VARCHAR2_300</code>.</p>
+
+<p>Until Oracle 12.1 types declared in PL/SQL packages were not supported via JDBC and you had to create a standalone type:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">create</span> <span class="k">type</span> <span class="n">t_varchar2_300</span> <span class="k">is</span> <span class="k">table</span> <span class="k">of</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">200</span><span class="p">);</span></code></pre></figure>
+
+<p>Luckily with 12.1 you can now use types declared in PL/SQL. Both the database and the JDBC driver need to be 12.1 or newer.</p>
+
+<p>This makes it possible to avoid ugly workarounds like creating standalone types that would logically belong to a package and also enables you to group related types together in a single package.</p>
+
+<p>For the sake of completeness here’s the full example code:</p>
+
+<figure class="highlight"><pre><code class="language-java" data-lang="java"><span></span><span class="kd">public</span> <span class="kd">class</span> <span class="nc">PlsqlPackageTypes</span> <span class="o">{</span>
+
+  <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">String</span> <span class="n">CONNECTION_STRING</span> <span class="o">=</span> 
+      <span class="s">&quot;jdbc:oracle:thin:scott/tiger@oracle-database-183:1521/orcl1803&quot;</span><span class="o">;</span>
+
+  <span class="kd">private</span> <span class="kd">static</span> <span class="n">String</span> <span class="n">SQL</span> <span class="o">=</span> <span class="s">&quot;select * from (&quot;</span>
+      <span class="o">+</span> <span class="s">&quot; select &#39;X&#39; as xyz from dual &quot;</span>
+      <span class="o">+</span> <span class="s">&quot; union all select &#39;Y&#39; from dual&quot;</span>
+      <span class="o">+</span> <span class="s">&quot; union all select &#39;Z&#39; from dual) &quot;</span>
+      <span class="o">+</span> <span class="s">&quot;where xyz in (select column_value from table(?))&quot;</span><span class="o">;</span>
+
+  <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">SQLException</span> <span class="o">{</span>
+    <span class="n">OracleConnection</span> <span class="n">connection</span> <span class="o">=</span>
+        <span class="o">(</span><span class="n">OracleConnection</span><span class="o">)</span> <span class="n">DriverManager</span><span class="o">.</span><span class="na">getConnection</span><span class="o">(</span><span class="n">CONNECTION_STRING</span><span class="o">);</span>
+    <span class="n">Array</span> <span class="n">myArray</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">createOracleArray</span><span class="o">(</span><span class="s">&quot;MY_PKG.T_VARCHAR2_300&quot;</span><span class="o">,</span> 
+        <span class="k">new</span> <span class="n">String</span><span class="o">[]{</span><span class="s">&quot;X&quot;</span><span class="o">,</span> <span class="s">&quot;Z&quot;</span><span class="o">});</span>
+
+    <span class="n">var</span> <span class="n">stmt</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">prepareStatement</span><span class="o">(</span><span class="n">SQL</span><span class="o">);</span>
+    <span class="n">stmt</span><span class="o">.</span><span class="na">setArray</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">myArray</span><span class="o">);</span>
+
+    <span class="n">ResultSet</span> <span class="n">rs</span> <span class="o">=</span> <span class="n">stmt</span><span class="o">.</span><span class="na">executeQuery</span><span class="o">();</span>
+    <span class="k">while</span><span class="o">(</span><span class="n">rs</span><span class="o">.</span><span class="na">next</span><span class="o">())</span> <span class="o">{</span>
+      <span class="n">String</span> <span class="n">xyz</span> <span class="o">=</span> <span class="n">rs</span><span class="o">.</span><span class="na">getString</span><span class="o">(</span><span class="s">&quot;XYZ&quot;</span><span class="o">);</span>
+      <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="n">xyz</span><span class="o">);</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}</span></code></pre></figure>
+
+<p>Other examples can be found in the <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/jjdbc/JDBC-reference-information.html#GUID-E77C2AE8-E22B-48BF-A4CB-010CBC8FE7C2">Oracle JDBC Guide</a>.</p>
+
+<p>Unfortunately, package types still only work in <code>SELECT</code> statements and cannot be used in DML. This is a general limitation in Oracle and is not specific to JDBC.</p>
+
+
+
+    <a href="/2019/08/07/plsql_package_types_in_jdbc/#comments">Comment</a>
+  </div>
+  
+  <div class="post">
+    <h1 class="post-title">
+      <a href="/2019/08/05/jdbc-statement-caching/">
+        JDBC Statement Caching: Implicit vs. Explicit
+      </a>
+    </h1>
+
+    <span class="post-date">05 Aug 2019</span>
+
+    <p>The Oracle JDBC driver offers two methods for client-side statement caching. Enabling statement caching changes the behavior when the client closes a prepared statement. With statement caching disabled, the driver simply closes the statement. This is a server call which closes the associated cursor on the database. When the same statement is executed again it has to be at least soft parsed again. With statement caching enabled, the statement and its associated database cursor are not closed. Instead the statement is put in a pool (basically a LRU list of statements) for reuse. This way soft parses can be avoided which saves database resources and improves performance, which is the main reason to use statement caching.</p>
+
+<p>At a first glance, the two statement caching methods differ mainly in the way a statement can be retrieved from the cache, but they also differ in what kind of data is cached. There’s no detailed information about the latter. This post tries to shed some light into that area and reveals some interesting behavior. All tests where done with the 18.3 JDBC driver. If you want to test your driver version, check out the code on <a href="https://github.com/TAregger/oracle-statement-caching">Github</a>.</p>
+
+<h1 id="cached-statement-retrieval">Cached Statement Retrieval</h1>
+<p>First, let’s have a look at some code to recap how these two methods are used.</p>
+
+<p>Please note that while the examples always use <code>PreparedStatement</code>, caching is also done for <code>CallableStatement</code> but not for plain <code>Statement</code>.</p>
+
+<h2 id="implicit-caching">Implicit Caching</h2>
+<p>The following code snippet demonstrates the use of implicit statement caching:</p>
+
+<figure class="highlight"><pre><code class="language-java" data-lang="java"><span></span><span class="c1">// Enable implicit cache. Cache 5 statements.</span>
+<span class="n">connection</span><span class="o">.</span><span class="na">setImplicitCachingEnabled</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+<span class="n">connection</span><span class="o">.</span><span class="na">setStatementCacheSize</span><span class="o">(</span><span class="mi">5</span><span class="o">);</span>
+
+<span class="c1">// Prepare statement</span>
+<span class="n">PreparedStatement</span> <span class="n">statement</span> <span class="o">=</span>
+  <span class="n">connection</span><span class="o">.</span><span class="na">prepareStatement</span><span class="o">(</span><span class="s">&quot;select * from dual&quot;</span><span class="o">);</span>
+
+<span class="c1">// Execute and fetch ...</span>
+
+<span class="c1">// Statement is not closed but put it in the cache</span>
+<span class="n">statement</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+
+<span class="c1">// Statement is retrieved from the cache</span>
+<span class="n">statement</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">prepareStatement</span><span class="o">(</span><span class="s">&quot;select * from dual&quot;</span><span class="o">);</span></code></pre></figure>
+
+<p>The code dealing with the prepared statement looks exactly the same as it would without caching enabled. When preparing a statement, the cache is searched for an already existing statement with the exact same SQL text and result set type. This has the huge advantage that you could benefit from it without any code changes. It’s transparent to the client and therefore can be used with any framework in use. The only thing that the client needs to do, is to enable it either on the connection or on the data source.</p>
+
+<h2 id="explicit-caching">Explicit Caching</h2>
+<p>Let’s have a look at code using explicit statement caching:</p>
+
+<figure class="highlight"><pre><code class="language-java" data-lang="java"><span></span><span class="c1">// Enable explicit cache. Cache 5 statements.</span>
+<span class="n">connection</span><span class="o">.</span><span class="na">setExplicitCachingEnabled</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+<span class="n">connection</span><span class="o">.</span><span class="na">setStatementCacheSize</span><span class="o">(</span><span class="mi">5</span><span class="o">);</span>
+
+<span class="c1">// Prepare statement</span>
+<span class="n">OraclePreparedStatement</span> <span class="n">statement</span> <span class="o">=</span>
+  <span class="o">(</span><span class="n">OraclePreparedStatement</span><span class="o">)</span> <span class="n">connection</span><span class="o">.</span><span class="na">prepareStatement</span><span class="o">(</span><span class="s">&quot;select * from dual&quot;</span><span class="o">);</span>
+
+<span class="c1">// Execute and fetch ...</span>
+
+<span class="c1">// Statement is not closed but put it in the cache</span>
+<span class="n">statement</span><span class="o">.</span><span class="na">closeWithKey</span><span class="o">(</span><span class="s">&quot;myCacheKey&quot;</span><span class="o">);</span>
+
+<span class="c1">// Statement is retrieved from the cache</span>
+<span class="n">connection</span><span class="o">.</span><span class="na">getStatementWithKey</span><span class="o">(</span><span class="s">&quot;myCacheKey&quot;</span><span class="o">);</span></code></pre></figure>
+
+<p>The main difference to implicit caching is how the statement is put into the cache and how it’s retrieved from it. The statement has to be closed by providing a key. This <code>closeWithKey</code> method is declared in <code>OraclePreparedStatement</code> and is not available in <code>PreparedStatement</code>. The cached statement can be retrieved with the same key. Again, <code>getStatementWithKey</code> needs an <code>OracleConnection</code>.</p>
+
+<p>So explicit caching needs some more work to be used in your code and leads to tighter coupling to Oracle specific classes and methods. I’m not aware of any data access framework supporting it.</p>
+
+<h1 id="cached-data">Cached Data</h1>
+<p>It looks like the two methods differ mainly in how statements are put in and retrieved from the cache. But there’s one more major difference. The <a href="https://docs.oracle.com/en/database/oracle/oracle-database/18/jjdbc/statement-and-resultset-caching.html">Oracle JDBC Guide</a> states the following:</p>
+
+<blockquote>
+  <p>Because explicit Statement caching retains statement data and state as well as metadata, it has a performance edge over implicit Statement caching, which retains only metadata. However, you must be cautious when using this type of caching, because explicit Statement caching saves all three types of information for reuse and you may not be aware of what data and state are retained from prior use of the statements.</p>
+</blockquote>
+
+<p>The documentation talks about state, data and metadata. I don’t know what kind of data is supposed to fit into which of these categories. So, after some tests I defined the following categories to illustrate the caching behavior:</p>
+<ul>
+  <li><strong>Properties</strong> - Properties set on the statement, which don’t retrieve or send any user data to the database server.</li>
+  <li><strong>Data</strong> - User data or statement metadata to be sent or retrieved from the database server.</li>
+</ul>
+
+<p>The test code can be found on <a href="https://github.com/TAregger/oracle-statement-caching">Github</a>.</p>
+<h2 id="properties">Properties</h2>
+<p>The following table shows the different statement properties and whether these settings are retained when a statement is retrieved from the cache.</p>
+
+<style type="text/css">
+.tg .tg-c3ow{border-color:inherit;text-align:center;vertical-align:top}
+.tg .tg-c3ow-break{word-break: break-all}
+.tg .tg-c3ow-red{border-color:inherit;text-align:center;vertical-align:top;color:#bf616a}
+.tg .tg-c3ow-green{border-color:inherit;text-align:center;vertical-align:top;color:green}
+</style>
+
+<table class="tg">
+  <tr>
+    <th class="tg-0pky">Property</th>
+    <th class="tg-0pky">Used method to set the property</th>
+    <th class="tg-c3ow">Implicit</th>
+    <th class="tg-c3ow">Explicit</th>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Result Set Type</td>
+    <td class="tg-c3ow-break"><code>Connection#prepareStatement</code></td>
+    <td class="tg-c3ow">N/A</td>
+    <td class="tg-c3ow-green">&check;</td> </tr>
+  <tr>
+    <td class="tg-0pky">Result Set Concurrency</td>
+    <td class="tg-c3ow-break"><code>Connection#prepareStatement</code></td>
+    <td class="tg-c3ow">N/A</td>
+    <td class="tg-c3ow-green">&check;</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Fetch Size</td>
+    <td class="tg-c3ow-break"><code>OraclePreparedStatement#setRowPrefetch</code></td>
+    <td class="tg-c3ow-red">&cross;</td>
+    <td class="tg-c3ow-green">&check;</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">LOB Prefetch Size</td>
+    <td class="tg-c3ow-break"><code>OraclePreparedStatement#setLobPrefetchSize</code></td>
+    <td class="tg-c3ow-green">&check;</td>
+    <td class="tg-c3ow-green">&check;</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Max Field Size</td>
+    <td class="tg-c3ow-break"><code>OraclePreparedStatement#setMaxFieldSize</code></td>
+    <td class="tg-c3ow-red">&cross;</td>
+    <td class="tg-c3ow-green">&check;</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Query Timeout</td>
+    <td class="tg-c3ow-break"><code>OraclePreparedStatement#setQueryTimeout</code></td>
+    <td class="tg-c3ow-red">&cross;</td>
+    <td class="tg-c3ow-green">&check;</td>
+  </tr>
+</table>
+
+<h3 id="result-set-type-and-concurrency">Result Set Type and Concurrency</h3>
+<p>These properties are set by calling <code>Connection#prepareStatement</code>. For implicitly cached statements they are, together with the SQL text, part of the cache key. Therefore, a prepared statement is only found in the cache when these 2 properties match.</p>
+
+<h3 id="lob-prefetch-size">LOB Prefetch Size</h3>
+<p>As the regular fetch size setting is not retained in implicitly cached statements, I expected the same for LOB prefetch size. Interestingly this is not the case.</p>
+
+<h2 id="data">Data</h2>
+<p>The table below shows a summary of which kind of data is cached by which method. There are some interesting irregularities explained afterwards.</p>
+<style type="text/css">
+.tg .tg-c3ow{border-color:inherit;text-align:center;vertical-align:top}
+.tg .tg-c3ow-red{border-color:inherit;text-align:center;vertical-align:top;color:#bf616a}
+.tg .tg-c3ow-green{border-color:inherit;text-align:center;vertical-align:top;color:green}
+</style>
+
+<table class="tg">
+  <tr>
+    <th class="tg-0pky">Data</th>
+    <th class="tg-c3ow">Implicit</th>
+    <th class="tg-c3ow">Explicit</th>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Result Set</td>
+    <td class="tg-c3ow-red">&cross;</td>
+    <td class="tg-c3ow-red">&cross;</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Result Set Metadata</td>
+    <td class="tg-c3ow-green">&check;</td>
+    <td class="tg-c3ow-green">&check;</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Parameter Metadata</td>
+    <td class="tg-c3ow-green">&check;</td>
+    <td class="tg-c3ow-red">&cross;</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Update Count</td>
+    <td class="tg-c3ow-green">&check;</td>
+    <td class="tg-c3ow-green">&check;</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Generated Keys</td>
+    <td class="tg-c3ow-red">&cross;</td>
+    <td class="tg-c3ow-green">&check;</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Bind Data</td>
+    <td class="tg-c3ow-red">&cross;</td>
+    <td class="tg-c3ow-green">&check;</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Batches</td>
+    <td class="tg-c3ow-red">&cross;</td>
+    <td class="tg-c3ow-red">&cross;</td>
+  </tr>
+</table>
+<h3 id="result-set">Result Set</h3>
+<p>When calling <code>Statement#close</code> the associated <code>ResultSet</code> is closed as well. This is also true when statement caching is enabled. Any subsequent calls on a result set returned by <code>Statement#getResultSet</code> will result in a <code>SQLException</code>.</p>
+
+<h3 id="result-set-metadata">Result Set Metadata</h3>
+<p>Result set metadata (e.g. retrieved by <code>PreparedStatement#getMetaData</code>)  is retained by both explicit and implicit statement caching as it is stated in the documentation.</p>
+
+<h3 id="parameter-metadata">Parameter Metadata</h3>
+<p>As one would expect, parameter metadata (retrieved by <code>PreparedStatement#getParameterMetaData</code>) behaves exactly the same as result set metadata regarding caching. But interestingly parameter metadata is only cached when implicit caching is enabled. I assume it is because internally the JDBC driver executes some statements to retrieve this information from the database. With implicit caching enabled, these statements are automatically cached as well.</p>
+
+<h3 id="update-count">Update Count</h3>
+<p>After calling <code>PreparedStatement#executeUpdate</code> to insert or update records, the number of affected rows can be returned by calling <code>Statement#getUpdateCount</code>. The update count is retained for statements put into the cache. Interestingly this is also the case for implicitly cached statements. I don’t see any reason why this value is not reset for implicitly cached statements, and it’s not the behavior described in the documentation.</p>
+
+<p>This is only a problem if <code>Statement#getUpdateCount</code> is called after retrieving a statement from the cache but before doing an update. In this case the method reports the update count from the previous execution, otherwise the value simply gets overwritten when an update statement is executed.
+The reported row count also depends on whether the <code>Statement#getUpdateCount</code> was called on the statement before it was put back into the cache. It either reports the updated rows (if the method was not called previously) or -1, which means the value was already retrieved.</p>
+
+<h3 id="generated-keys">Generated Keys</h3>
+<p>By calling <code>Statement#getGeneratedKeys</code> one can retrieve the keys generated by an insert statement. In fact, any columns could be returned, but it makes most sense to return generated keys, as they are not already known by the client.
+This method returns a regular <code>ResultSet</code>, but unlike the one returned by <code>Statement#getResultSet</code> this one is retained for explicitly cached statements.</p>
+
+<h3 id="bind-data">Bind Data</h3>
+<p>Oracle uses three different ways for binding data depending on data size and type of SQL statement (SQL or PL/SQL): direct, stream or LOB binding. See the <a href="https://docs.oracle.com/en/database/oracle/oracle-database/18/jjdbc/accessing-and-manipulating-Oracle-data.html#GUID-9CF0FDC2-7BD5-4F96-8AED-F58DC30BE62B">documentation</a> for more information. Irrespective of the method used, bind data is always cached by explicit statement caching. You should be aware of this, as it can hugely impact your memory footprint when dealing with LOBs or other large data. Also keep it in mind when sizing the statement cache (<code>OracleConnection#setStatementCacheSize</code>).</p>
+
+<h3 id="batches">Batches</h3>
+<p>To minimize round trips between the client and the database, a common technique is to batch bind data (<code>PreparedStatement#addBatch</code>) and send it to the database in one go. In contrast to non-batched statements where bind data is cached by explicit statement caching, it is not cached when using batches. Batches are always cleared when a statement is put into the cache.</p>
+
+<h1 id="conclusion">Conclusion</h1>
+<p>Most data access frameworks nowadays take away the burden of SQL cursor handling. One of the benefits is, that it avoids cursor leaks, but on the other hands leads to more soft parses and cursor creation on the database side. JDBC statement caching does mitigate these issues, so using it is strongly recommended.</p>
+
+<p>Implicit caching is very easy to use and there is no reason not to enable it.</p>
+
+<p>Explicit caching requires changes in the application code. According to Oracle it can give you better performance because more data is cached. Whether this is only true if you actually reuse data from previously cached statements or also when you override this data (think of bind data) has to be thoroughly tested.</p>
+
+<p>After all, you are not limited to use only one of the caching methods but can use both simultaneously and benefit from the strengths of each method. For this reason, you should be aware of the different data that is retained by the two caching methods. The tests have shown the behavior is not always what one would expect after reading the documentation.</p>
+
+<h1 id="references">References</h1>
+<ul>
+  <li><a href="https://docs.oracle.com/en/database/oracle/oracle-database/18/jjdbc/statement-and-resultset-caching.html">Oracle JDBC Developer’s Guide: Statement Caching</a></li>
+  <li><a href="https://docs.oracle.com/en/database/oracle/oracle-database/18/jjdbc/accessing-and-manipulating-Oracle-data.html#GUID-9CF0FDC2-7BD5-4F96-8AED-F58DC30BE62B">Oracle JDBC Developer’s Guide: Binding Methods</a></li>
+  <li><a href="https://github.com/TAregger/oracle-statement-caching">Testcases on Github</a></li>
+</ul>
+
+
+
+    <a href="/2019/08/05/jdbc-statement-caching/#comments">Comment</a>
+  </div>
+  
+  <div class="post">
+    <h1 class="post-title">
+      <a href="/2019/03/18/sga-areas-in-x$ksmmem/">
+        SGA areas in x$ksmmem
+      </a>
+    </h1>
+
+    <span class="post-date">18 Mar 2019</span>
+
+    <p>The fixed table <code>x$ksmmem</code> (<strong>K</strong>ernel Layer, <strong>S</strong>ervice Layer, <strong>M</strong>emory Management, <strong>MEM</strong>ory) is basically a memory map of your SGA. It contains a row for each memory address (<code>addr</code>) and the value stored at this location (<code>ksmmmval</code>). This post shows which areas were accessible over this structure in older versions of Oracle, and more importantly, which areas are not present anymore in more recent versions.</p>
+
+<p>In all examples ASMM is enabled, AMM disabled and platform is Linux x86_64.</p>
+
+<h2 id="version-112">Version 11.2</h2>
+<p>Let’s first have a look at the shared memory segments allocated by Oracle.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="n">oradebug</span> <span class="n">setmypid</span>
+<span class="n">oradebug</span> <span class="n">ipc</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>...
+ Area #0 `Fixed Size&#39; containing Subareas 0-0
+  Total size 0000000000221a50 Minimum Subarea size 00000000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      0        0    32768 0x00000060000000 0x00000060000000
+                              Subarea size     Segment size
+                          0000000000222000 0000000008c00000
+ Area #1 `Variable Size&#39; containing Subareas 4-4
+  Total size 0000000035c00000 Minimum Subarea size 00400000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      1        4    65537 0x00000068c00000 0x00000068c00000
+                              Subarea size     Segment size
+                          0000000035c00000 0000000035c00000
+ Area #2 `Redo Buffers&#39; containing Subareas 1-1
+  Total size 0000000008565000 Minimum Subarea size 00000000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      2        1    32768 0x00000060222000 0x00000060222000
+                              Subarea size     Segment size
+                          0000000008565000 0000000008c00000
+ Area #3 `Base Allocator Control&#39; containing Subareas 3-3
+  Total size 0000000000002000 Minimum Subarea size 00000000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      3        3    32768 0x00000068bfe000 0x00000068bfe000
+                              Subarea size     Segment size
+                          0000000000002000 0000000008c00000
+ Area #4 `Slab Allocator Control&#39; containing Subareas 2-2
+  Total size 0000000000477000 Minimum Subarea size 00000000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      4        2    32768 0x00000068787000 0x00000068787000
+                              Subarea size     Segment size
+                          0000000000477000 0000000008c00000
+ Area #5 `skgm overhead&#39; containing Subareas 5-5
+  Total size 0000000000003000 Minimum Subarea size 00000000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      5        5    98306 0x0000009e800000 0x0000009e800000
+                              Subarea size     Segment size
+                          0000000000003000 0000000000200000
+...</code></pre></figure>
+
+<p>As we can see, there are 3 different segments allocated (Shmid 32768, 65537 and 98306).</p>
+
+<p>By taking the values from <em>Actual Addr</em> as the start address and <em>Actual Addr</em> + <em>Total size</em>  as the end address, we can write a simple query to see which areas are externalized in <code>x$ksmmem</code>.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="n">area</span><span class="p">,</span> <span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span> <span class="k">from</span> <span class="p">(</span>
+ <span class="k">select</span>
+  <span class="k">case</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000060000000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;0000000060221A50&#39;</span>
+   <span class="k">then</span> <span class="s1">&#39;Fixed Size&#39;</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000068C00000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;000000009E800000&#39;</span>
+   <span class="k">then</span> <span class="s1">&#39;Variable Size&#39;</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000060222000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;0000000068787000&#39;</span> 
+   <span class="k">then</span> <span class="s1">&#39;Redo Buffers&#39;</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000068BFE000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;0000000068C00000&#39;</span> 
+   <span class="k">then</span> <span class="s1">&#39;Base Allocator Control&#39;</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000068787000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;0000000068BFE000&#39;</span> 
+   <span class="k">then</span> <span class="s1">&#39;Slab Allocator Control&#39;</span> 
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;000000009E800000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;000000009E803000&#39;</span> 
+   <span class="k">then</span> <span class="s1">&#39;skgm overhead&#39;</span>
+  <span class="k">end</span> <span class="k">as</span> <span class="n">area</span>
+ <span class="k">from</span> <span class="n">x$ksmmem</span><span class="p">)</span>
+<span class="k">group</span> <span class="k">by</span> <span class="n">area</span><span class="p">;</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>AREA                     COUNT(*)
+---------------------- ----------
+Redo Buffers             17484288
+Slab Allocator Control     585216
+Variable Size           112135680
+Base Allocator Control       1024
+Fixed Size                 279370
+
+5 rows selected.</code></pre></figure>
+
+<p>As can be seen, all SGA areas except <em>skgm overhead</em> can be accessed over this table.</p>
+
+<h2 id="version-183">Version 18.3</h2>
+<p>Let’s do the same thing in 18.3.</p>
+
+<p>Instead of listing the shared memory segments via <code>oradebug ipc</code> we can query the new fixed table <code>x$ksmssinfo</code> (Probably a mnemonic for (<strong>K</strong>ernel Layer, <strong>S</strong>ervice Layer, <strong>M</strong>emory Management, <strong>S</strong>hared Memory <strong>S</strong>egment <strong>INFO</strong>).</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span>
+ <span class="ss">&quot;AREA NAME&quot;</span><span class="p">,</span>
+ <span class="ss">&quot;START ADDR&quot;</span><span class="p">,</span>
+ <span class="n">to_char</span><span class="p">(</span>
+  <span class="n">to_number</span><span class="p">(</span><span class="ss">&quot;START ADDR&quot;</span><span class="p">,</span> <span class="n">rpad</span><span class="p">(</span><span class="s1">&#39;X&#39;</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="s1">&#39;X&#39;</span><span class="p">))</span> <span class="o">+</span> <span class="ss">&quot;SIZE&quot;</span><span class="p">,</span>
+  <span class="n">rpad</span><span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="s1">&#39;X&#39;</span><span class="p">)</span>
+ <span class="p">)</span> <span class="k">as</span> <span class="n">END_ADDR</span><span class="p">,</span>
+ <span class="ss">&quot;SIZE&quot;</span>
+<span class="k">from</span> <span class="n">x$ksmssinfo</span><span class="p">;</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>AREA NAME                        START ADDR       END_ADDR                SIZE
+-------------------------------- ---------------- ----------------- ----------
+Variable Size                    0000000060C00000  0000000096400000  897581056
+Redo Buffers                     0000000096400000  000000009EBBC000  142327808
+Fixed Size                       0000000060000000  0000000060844000    8667136
+skgm overhead                    000000009EC00000  000000009EC05000      20480</code></pre></figure>
+
+<p>We execute the same query as before, with only the start and end addresses changed.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="n">area</span><span class="p">,</span> <span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span> <span class="k">from</span> <span class="p">(</span>
+ <span class="k">select</span>
+  <span class="k">case</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000060000000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;0000000060844000&#39;</span>
+   <span class="k">then</span> <span class="s1">&#39;Fixed Size&#39;</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000060C00000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;0000000096400000&#39;</span>
+   <span class="k">then</span> <span class="s1">&#39;Variable Size&#39;</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;0000000096400000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;000000009EBBC000&#39;</span> 
+   <span class="k">then</span> <span class="s1">&#39;Redo Buffers&#39;</span>
+  <span class="k">when</span> <span class="n">addr</span> <span class="o">&gt;=</span> <span class="s1">&#39;000000009EC00000&#39;</span> <span class="k">and</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="s1">&#39;000000009EC05000&#39;</span> 
+   <span class="k">then</span> <span class="s1">&#39;skgm overhead&#39;</span>
+  <span class="k">end</span> <span class="k">as</span> <span class="n">area</span>
+ <span class="k">from</span> <span class="n">x$ksmmem</span><span class="p">)</span>
+<span class="k">group</span> <span class="k">by</span> <span class="n">area</span><span class="p">;</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="n">AREA</span>            <span class="k">COUNT</span><span class="p">(</span><span class="o">*</span><span class="p">)</span>
+<span class="c1">------------- ----------</span>
+<span class="n">Fixed</span> <span class="k">Size</span>       <span class="mi">1083204</span></code></pre></figure>
+
+<p>As can be seen, in Oracle 18.3 only the <em>Fixed Size</em> area is externalized in <code>x$ksmmem</code>. In fact, this is the case since bug 19363432 (introduced in 12.1) has been fixed later in Oracle 12.1.</p>
+
+<p>The behavior in Oracle 12.1 before applying the bugfix, is that <code>x$ksmmem</code> also displays addresses which are not currently mapped. This leads to segmentation faults when you try to access this memory location by referring to <code>x$ksmmem.ksmmmval</code>. Unfortunately, after applying the bugfix, all areas except <em>Fixed Size</em> disappear from this fixed table.</p>
+
+<h2 id="alternatives">Alternatives</h2>
+<p>In some cases, you want to have access to the contents of shared memory for troubleshooting. <code>x$ksmmem</code> provided a convenient way to do so, because you could use it in any query (e.g. by joining to other fixed views/tables containing memory addresses). Of course, you can still use <code>oradebug peek</code> or any other tool you like, but it’s definitely more cumbersome.</p>
+
+
+
+    <a href="/2019/03/18/sga-areas-in-x$ksmmem/#comments">Comment</a>
+  </div>
+  
+  <div class="post">
+    <h1 class="post-title">
+      <a href="/2019/01/28/strange-case-of-ora-01950-no-privileges-on-tablespace/">
+        Strange case of ORA-01950: no privileges on tablespace
+      </a>
+    </h1>
+
+    <span class="post-date">28 Jan 2019</span>
+
+    <p>I recently faced a strange issue where a user got an <code>ORA-01950: no privileges on tablespace</code> while issuing some DML statement.
+A quick look on <code>DBA_TS_QUOTAS</code> showed that the segment owner (according to <code>DBA_SEGMENTS</code>) has unlimited quota on the reported tablespace.</p>
+
+<p>After checking the view definition of <code>DBA_SEGMENTS</code> and its backing view <code>SYS_DBA_SEGS</code> I became a bit suspicious because the reported owner is taken from <code>SYS.OBJ$</code>. Could it be, that the segment is in fact owned by a different user?</p>
+
+<p>Bingo! Querying <code>SYS.SEG$</code> revealed that the owner of the segment (<code>USER#</code>) is indeed a different one than the one reported by <code>DBA_SEGMENTS</code>. In fact, the user did not even exist anymore.</p>
+
+<p>The following query shows all segments where the segment owner does not exist anymore:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="n">se</span><span class="p">.</span><span class="k">owner</span><span class="p">,</span> <span class="n">se</span><span class="p">.</span><span class="n">segment_name</span><span class="p">,</span> <span class="n">se</span><span class="p">.</span><span class="n">segment_type</span>
+<span class="k">from</span> <span class="n">sys</span><span class="p">.</span><span class="n">seg$</span> <span class="n">s</span>
+<span class="k">join</span> <span class="n">dba_segments</span> <span class="n">se</span>
+  <span class="k">on</span> <span class="p">(</span><span class="n">se</span><span class="p">.</span><span class="n">relative_fno</span> <span class="o">=</span> <span class="n">s</span><span class="p">.</span><span class="n">file</span><span class="o">#</span> <span class="k">and</span> <span class="n">se</span><span class="p">.</span><span class="n">header_block</span> <span class="o">=</span> <span class="n">s</span><span class="p">.</span><span class="n">block</span><span class="o">#</span><span class="p">)</span>
+<span class="k">where</span> <span class="k">not</span> <span class="k">exists</span> <span class="p">(</span><span class="k">select</span> <span class="mi">1</span> <span class="k">from</span> <span class="n">dba_users</span> <span class="n">u</span> <span class="k">where</span> <span class="n">u</span><span class="p">.</span><span class="n">user_id</span> <span class="o">=</span><span class="n">s</span><span class="p">.</span><span class="k">user</span><span class="o">#</span><span class="p">);</span></code></pre></figure>
+
+<p>The query returned 2 rows. Both segments were non-partitioned primary key indexes on a partitioned table. Rebuilding the indexes fixed the issue but I’m still curious how this could happen.</p>
+
+<p>There’s a bug on MOS (Bug 12614714) which describes a similar issue for segments for which an exchange partition operation was performed. 
+Here’s an excerpt from the note:</p>
+
+<blockquote>
+  <p>ORA-1950 updating a partitioned table<br />
+The user# in seg$ is not swapped after a partition exchange when the tables
+involved are in different schemas and one of the segments (partition/
+subpartition/lob fragment) is delayed, then it is likely that
+you have hit this bug.</p>
+</blockquote>
+
+<p>Despite that in my case no exchange partition was performed, deferred segment creation is certainly enabled. So, I assume it has something to do with that, but I was not able to think of a scenario where this could happen, nor was I able to create a reproducible test case.</p>
+
+
+    <a href="/2019/01/28/strange-case-of-ora-01950-no-privileges-on-tablespace/#comments">Comment</a>
+  </div>
+  
+</div>
+
+<div class="pagination">
+  
+    <a class="pagination-item older" href="/page2">Older</a>
+  
+  
+    <span class="pagination-item newer">Newer</span>
+  
+</div>
+
+    </div>
+
+  </body>
+</html>

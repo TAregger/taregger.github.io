@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+  <head>
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-78018626-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+  
+    gtag('config', 'UA-78018626-1');
+  </script>
+
+  <link href="http://gmpg.org/xfn/11" rel="profile">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+  <!-- Enable responsiveness on mobile devices-->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+  <title>
+    
+      blog.aregger.io
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/public/css/poole.css">
+  <link rel="stylesheet" href="/public/css/syntax.css">
+  <link rel="stylesheet" href="/public/css/hyde.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400italic,700|Abril+Fatface">
+
+  <!-- Icons -->
+  <link rel="shortcut icon" href="/public/favicon.ico">
+
+  <!-- RSS -->
+  <link rel="alternate" type="application/rss+xml" title="RSS" href="/atom.xml">
+
+  <!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Page 3 of 3 for Home | blog.aregger.io</title>
+<meta name="generator" content="Jekyll v3.8.6" />
+<meta property="og:title" content="Home" />
+<meta name="author" content="Thomas Aregger" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="A blog about Oracle, SQL and Java" />
+<meta property="og:description" content="A blog about Oracle, SQL and Java" />
+<link rel="canonical" href="https://blog.aregger.io/page3/" />
+<meta property="og:url" content="https://blog.aregger.io/page3/" />
+<meta property="og:site_name" content="blog.aregger.io" />
+<link rel="prev" href="https://blog.aregger.io/page2" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Home" />
+<meta name="twitter:site" content="@taregger" />
+<meta name="twitter:creator" content="@taregger" />
+<script type="application/ld+json">
+{"url":"https://blog.aregger.io/page3/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"A blog about Oracle, SQL and Java","headline":"Home","@type":"WebPage","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+
+  <body>
+
+    <div class="sidebar">
+  <div class="container sidebar-sticky">
+    <div class="sidebar-about">
+      <h1>
+        <a href="/">
+	  blog. aregger.io
+        </a>
+      </h1>
+      <p class="lead">A blog about Oracle, SQL and Java</p>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="sidebar-nav-item" href="/">Home</a>
+
+      
+
+      
+      
+        
+          
+        
+      
+        
+          
+            <a class="sidebar-nav-item" href="/about/">About</a>
+          
+        
+      
+        
+          
+            <a class="sidebar-nav-item" href="/archive/">Archive</a>
+          
+        
+      
+        
+      
+        
+          
+        
+      
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+      
+        
+      
+
+    </nav>
+
+    <div class="sidebar-nav-social">
+      <a href="https://twitter.com/taregger">
+        <img src="/public/twitter.png" alt="twitter" height="32" width="32">
+      </a>
+    </div>
+
+    <!-- 
+    <p>&copy; 2019. All rights reserved.</p>
+    -->
+  </div>
+</div>
+
+
+    <div class="content container">
+      <div class="posts">
+  
+  <div class="post">
+    <h1 class="post-title">
+      <a href="/temporal-validity-wrong-results/">
+        Temporal Validity and "wrong" results
+      </a>
+    </h1>
+
+    <span class="post-date">10 Jan 2017</span>
+
+    <p>Temporal validity is a new feature in Oracle 12c. It makes querying effective date ranges much simpler. For more details refer to the <a href="https://docs.oracle.com/database/121/ADFNS/adfns_design.htm#ADFNS967">Oracle documentation</a>.</p>
+
+<p>This blog post explains in which situation one gets “wrong” or at least unexpected results when using temporal validity.</p>
+
+<p>To demonstrate the situation let’s create a table with a time dimension and some records:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">create</span> <span class="k">table</span> <span class="n">t1</span> <span class="p">(</span><span class="n">startdate</span> <span class="nb">date</span><span class="p">,</span> <span class="n">enddate</span> <span class="nb">date</span><span class="p">);</span> 
+<span class="k">alter</span> <span class="k">table</span> <span class="n">t1</span> <span class="k">add</span> <span class="n">period</span> <span class="k">for</span> <span class="n">t1period</span> <span class="p">(</span><span class="n">startdate</span><span class="p">,</span> <span class="n">enddate</span><span class="p">);</span> 
+
+<span class="k">insert</span> <span class="k">into</span> <span class="n">t1</span> <span class="k">values</span><span class="p">(</span><span class="k">null</span><span class="p">,</span> <span class="nb">date</span><span class="s1">&#39;2016-01-10&#39;</span><span class="p">);</span> 
+<span class="k">insert</span> <span class="k">into</span> <span class="n">t1</span> <span class="k">values</span><span class="p">(</span><span class="nb">date</span><span class="s1">&#39;2016-01-08&#39;</span><span class="p">,</span> <span class="k">null</span><span class="p">);</span> 
+<span class="k">insert</span> <span class="k">into</span> <span class="n">t1</span> <span class="k">values</span><span class="p">(</span><span class="nb">date</span><span class="s1">&#39;2016-01-08&#39;</span><span class="p">,</span> <span class="nb">date</span><span class="s1">&#39;2016-01-10&#39;</span><span class="p">);</span> 
+
+<span class="k">commit</span><span class="p">;</span></code></pre></figure>
+
+<p>So if you want to get the records from table T1 which are effective as of the day after tomorrow you can query it with the following select:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">as</span> <span class="k">of</span> <span class="n">period</span> <span class="k">for</span> <span class="n">t1period</span> <span class="nb">date</span><span class="s1">&#39;2016-01-11&#39;</span><span class="p">;</span></code></pre></figure>
+
+<p>The returned result is as expected</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>STARTDATE           ENDDATE
+------------------- -------------------
+2016-01-08 00:00:00</code></pre></figure>
+
+<p>So what happens if you use a nonexistent time dimension:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">as</span> <span class="k">of</span> <span class="n">period</span> <span class="k">for</span> <span class="n">t2period</span> <span class="n">sysdate</span><span class="o">+</span><span class="mi">2</span><span class="p">;</span>
+              <span class="o">*</span>
+<span class="n">ERROR</span> <span class="k">at</span> <span class="n">line</span> <span class="mi">1</span><span class="p">:</span>
+<span class="n">ORA</span><span class="o">-</span><span class="mi">55603</span><span class="p">:</span> <span class="n">invalid</span> <span class="n">flashback</span> <span class="n">archive</span> <span class="k">or</span> <span class="k">valid</span> <span class="n">time</span> <span class="n">period</span> <span class="n">command</span></code></pre></figure>
+
+<p>You get an error, which is also the expected behaviour. But what happens when you delete the only existing time dimension on the table and query the table again.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">alter</span> <span class="k">table</span> <span class="n">t1</span> <span class="k">drop</span> <span class="p">(</span><span class="n">period</span> <span class="k">for</span> <span class="n">t1period</span><span class="p">);</span>
+
+<span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">as</span> <span class="k">of</span> <span class="n">period</span> <span class="k">for</span> <span class="n">t2period</span> <span class="n">sysdate</span><span class="o">+</span><span class="mi">2</span><span class="p">;</span>
+
+<span class="n">STARTDATE</span>           <span class="n">ENDDATE</span>
+<span class="c1">------------------- -------------------</span>
+                    <span class="mi">2016</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">10</span> <span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span> <span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span> <span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span> <span class="mi">2016</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">10</span> <span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span></code></pre></figure>
+
+<p>Oracle successfully executes the query and simply ignores the temporal validity clause. If someone accidentally drops your time dimension you won’t notice but get wrong results.</p>
+
+<p>In my opinion the correct behaviour in this situation would be returning an error, as it is the case when you have an already existing time dimension on the table but use a non-existing one in the query. I already filed a bug in MOS to ask whether this is a bug or a design decision and I will keep this post updated on the outcome.</p>
+
+<h3 id="update-2019-01-17">Update 2019-01-17</h3>
+<p>This bug has finally been fixed in version 19.1. Oracle now correctly reports <code>ORA-55603: invalid flashback archive or valid time period command</code> when there is no time dimension on the table.</p>
+
+
+    <a href="/temporal-validity-wrong-results/#comments">Comment</a>
+  </div>
+  
+  <div class="post">
+    <h1 class="post-title">
+      <a href="/loading-data-iots/">
+        Loading data into index organized tables
+      </a>
+    </h1>
+
+    <span class="post-date">19 Jun 2016</span>
+
+    <p>Most of the time you don’t have full control of how your data gets loaded into the database, because it is often imposed by business rules. But in the case you have full control, you should take advantage of it.</p>
+
+<p>I recently came across an index organized table which was kind of a denormalized form of other tables and which was truncated and reloaded every day before some heavy batch jobs queried it.</p>
+
+<p>The data was loaded into the IOT with an insert as select statement. Because the data returned by the select was not ordered (or at least not ordered after the primary key columns of the IOT), the insert caused a lot of 50/50 block splits on the IOT.</p>
+
+<p>I added a simple order by clause to the statement with the effect that only 90/10 block splits were done afterwards. This also resulted in a 50% smaller index size.</p>
+
+<p>Here’s a small test case for demonstration:</p>
+
+<h4 id="create-a-heap-table-which-is-later-used-to-load-data-into-the-iot">Create a heap table which is later used to load data into the IOT</h4>
+
+<p>The c1 column will be the pk column of the later created IOT. I used a random function so the values for this column are not ordered in any way.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">create</span> <span class="k">table</span> <span class="n">t_heap</span> <span class="p">(</span><span class="n">c1</span> <span class="nb">number</span><span class="p">,</span> <span class="n">c2</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">100</span><span class="p">));</span>
+
+<span class="k">INSERT</span> <span class="k">INTO</span> <span class="n">t_heap</span>
+<span class="k">SELECT</span> <span class="n">dbms_random</span><span class="p">.</span><span class="n">random</span><span class="p">,</span> <span class="n">lpad</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span><span class="s1">&#39;#&#39;</span><span class="p">)</span>
+<span class="k">FROM</span> <span class="n">dual</span> <span class="k">CONNECT</span> <span class="k">BY</span> <span class="n">rownum</span> <span class="o">&lt;=</span> <span class="mi">100000</span><span class="p">;</span></code></pre></figure>
+
+<p>Remove any duplicate values for c1 as this would lead to unique constraint violations later.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">declare</span>
+ <span class="n">lastValue</span> <span class="n">t_heap</span><span class="p">.</span><span class="n">c1</span><span class="o">%</span><span class="k">type</span><span class="p">;</span>
+ <span class="k">cursor</span> <span class="n">c_heap</span> <span class="k">is</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t_heap</span> <span class="k">order</span> <span class="k">by</span> <span class="n">c1</span> <span class="k">for</span> <span class="k">update</span><span class="p">;</span>
+<span class="k">begin</span>
+  <span class="k">for</span> <span class="n">rec</span> <span class="k">in</span> <span class="n">c_heap</span> <span class="n">loop</span>
+    <span class="k">if</span> <span class="n">rec</span><span class="p">.</span><span class="n">c1</span> <span class="o">=</span> <span class="n">lastValue</span> <span class="k">then</span>
+      <span class="k">delete</span> <span class="k">from</span> <span class="n">t_heap</span> <span class="k">where</span> <span class="k">current</span> <span class="k">of</span> <span class="n">c_heap</span><span class="p">;</span>
+    <span class="k">end</span> <span class="k">if</span><span class="p">;</span>
+  <span class="n">lastValue</span> <span class="p">:</span><span class="o">=</span> <span class="n">rec</span><span class="p">.</span><span class="n">c1</span><span class="p">;</span>
+  <span class="k">end</span> <span class="n">loop</span><span class="p">;</span>
+<span class="k">end</span><span class="p">;</span>
+<span class="o">/</span>
+
+<span class="k">commit</span><span class="p">;</span></code></pre></figure>
+
+<h4 id="create-the-iot">Create the IOT</h4>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">create</span> <span class="k">table</span> <span class="n">t_iot</span> <span class="p">(</span><span class="n">c1</span> <span class="nb">number</span><span class="p">,</span> <span class="n">c2</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
+ <span class="k">constraint</span> <span class="n">pk_iot</span> <span class="k">primary</span> <span class="k">key</span> <span class="p">(</span><span class="n">c1</span><span class="p">))</span>
+ <span class="n">organization</span> <span class="k">index</span><span class="p">;</span></code></pre></figure>
+
+<p>Check the index split statistics before inserting</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="n">n</span><span class="p">.</span><span class="n">name</span><span class="p">,</span><span class="n">s</span><span class="p">.</span><span class="n">value</span> <span class="k">from</span> <span class="n">v$mystat</span> <span class="n">s</span>
+<span class="k">join</span> <span class="n">v$statname</span> <span class="n">n</span> <span class="k">on</span> <span class="p">(</span><span class="n">s</span><span class="p">.</span><span class="n">statistic</span><span class="o">#</span> <span class="o">=</span> <span class="n">n</span><span class="p">.</span><span class="n">statistic</span><span class="o">#</span><span class="p">)</span>
+<span class="k">where</span> <span class="n">n</span><span class="p">.</span><span class="n">name</span> <span class="k">in</span> <span class="p">(</span><span class="s1">&#39;leaf node splits&#39;</span><span class="p">,</span> <span class="s1">&#39;leaf node 90-10 splits&#39;</span><span class="p">);</span>
+
+<span class="n">NAME</span>                                                                  <span class="n">VALUE</span>
+<span class="c1">---------------------------------------------------------------- ----------</span>
+<span class="n">leaf</span> <span class="n">node</span> <span class="n">splits</span>                                                          <span class="mi">0</span>
+<span class="n">leaf</span> <span class="n">node</span> <span class="mi">90</span><span class="o">-</span><span class="mi">10</span> <span class="n">splits</span>                                                    <span class="mi">0</span></code></pre></figure>
+
+<h4 id="insert-without-order-by-clause">Insert without order by clause</h4>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">insert</span> <span class="k">into</span> <span class="n">t_iot</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t_heap</span><span class="p">;</span>
+
+
+<span class="n">NAME</span>                                                                  <span class="n">VALUE</span>
+<span class="c1">---------------------------------------------------------------- ----------</span>
+<span class="n">leaf</span> <span class="n">node</span> <span class="n">splits</span>                                                       <span class="mi">2908</span>
+<span class="n">leaf</span> <span class="n">node</span> <span class="mi">90</span><span class="o">-</span><span class="mi">10</span> <span class="n">splits</span>                                                    <span class="mi">0</span>
+
+<span class="k">select</span> <span class="n">bytes</span><span class="o">/</span><span class="mi">1024</span><span class="o">/</span><span class="mi">1024</span> <span class="k">from</span> <span class="n">dba_segments</span> <span class="k">where</span> <span class="n">segment_name</span><span class="o">=</span><span class="s1">&#39;PK_IOT&#39;</span><span class="p">;</span>
+
+<span class="n">BYTES</span><span class="o">/</span><span class="mi">1024</span><span class="o">/</span><span class="mi">1024</span>
+<span class="c1">---------------</span>
+             <span class="mi">23</span></code></pre></figure>
+
+<p>About ~3k block splits were done, all of them 50/50. The size of the index is ~23 MB.</p>
+
+<h4 id="now-insert-with-order-by-clause">Now insert with order by clause</h4>
+
+<p>(Open a new database session, so we have “fresh” counters in <code>v$mystat</code>)</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">truncate</span> <span class="k">table</span> <span class="n">t_iot</span><span class="p">;</span>
+<span class="k">insert</span> <span class="k">into</span> <span class="n">t_iot</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t_heap</span> <span class="k">order</span> <span class="k">by</span> <span class="n">c1</span><span class="p">;</span>
+
+<span class="n">NAME</span>                                                                  <span class="n">VALUE</span>
+<span class="c1">---------------------------------------------------------------- ----------</span>
+<span class="n">leaf</span> <span class="n">node</span> <span class="n">splits</span>                                                       <span class="mi">1458</span>
+<span class="n">leaf</span> <span class="n">node</span> <span class="mi">90</span><span class="o">-</span><span class="mi">10</span> <span class="n">splits</span>                                                 <span class="mi">1458</span>
+
+<span class="k">select</span> <span class="n">bytes</span><span class="o">/</span><span class="mi">1024</span><span class="o">/</span><span class="mi">1024</span> <span class="k">from</span> <span class="n">dba_segments</span> <span class="k">where</span> <span class="n">segment_name</span><span class="o">=</span><span class="s1">&#39;PK_IOT&#39;</span><span class="p">;</span>
+
+<span class="n">BYTES</span><span class="o">/</span><span class="mi">1024</span><span class="o">/</span><span class="mi">1024</span>
+<span class="c1">---------------</span>
+             <span class="mi">12</span></code></pre></figure>
+
+<p>The amount of block splits is cut in half and because of the order by clause, only 90/10 block splits were done. The index size is also considerably smaller (12 MB compared to 23 MB).</p>
+
+
+    <a href="/loading-data-iots/#comments">Comment</a>
+  </div>
+  
+  <div class="post">
+    <h1 class="post-title">
+      <a href="/beware-of-the-oracle-wallet-autologin-option/">
+        Beware of the Oracle wallet autologin option
+      </a>
+    </h1>
+
+    <span class="post-date">18 May 2016</span>
+
+    <p>Oracle Wallets are used to store your database passwords in encrypted format. This is useful for application servers when you don’t want to store your passwords in cleartext. A wallet password protects the wallet from reading and modification of entries. Each time your application needs to open a database connection it has to access the wallet, which requires entry of the wallet password. If you want your application to be able to read the database passwords from the wallet without entry of the wallet password, you can create it with the autologin option (so called SSO wallets).</p>
+
+<p>When you think a little bit about it, it should be clear that this SSO wallet is not really encrypted anymore. Otherwise it would not be possible to read passwords from it, without authentication. In fact the autologin option creates a decrypted and obfuscated copy (cwallet.sso) from the original encrypted wallet (ewallet.p12). The whole security benefit from using a wallet compared to storing the passwords in cleartext more or less completely vanishes with the usage of the autologin option. I think the Oracle documentation is not very clear about this.</p>
+
+<p>In this blog post I would like to demonstrate, that once you have access to an autologin wallet, you can extract all passwords very easily.</p>
+
+<h4 id="1-first-lets-create-a-wallet-with-a-sample-entry">1. First let’s create a wallet with a sample entry</h4>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>orapki wallet create -wallet /home/oracle/wallet -auto_login_local \
+  -pwd myWalletPass16</code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>mkstore -wrl /home/oracle/wallet -createCredential oraclelinux:1521:orcl121 \
+  myUser myPass</code></pre></figure>
+
+<h4 id="2-write-a-trivial-java-class-to-open-a-database-connection">2. Write a trivial java class to open a database connection</h4>
+
+<figure class="highlight"><pre><code class="language-java" data-lang="java"><span></span><span class="kn">package</span> <span class="nn">io.aregger.wallet</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">java.sql.SQLException</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">oracle.jdbc.pool.OracleDataSource</span><span class="o">;</span>
+
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">OpenWallet</span> <span class="o">{</span>
+	<span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">SQLException</span> <span class="o">{</span>
+		<span class="n">OracleDataSource</span> <span class="n">dataSource</span> <span class="o">=</span> <span class="k">new</span> <span class="n">OracleDataSource</span><span class="o">();</span>
+		<span class="c1">// put in a random url. host and instance don&#39;t need to exist</span>
+		<span class="n">dataSource</span><span class="o">.</span><span class="na">setURL</span><span class="o">(</span><span class="s">&quot;jdbc:oracle:thin:@foo:1521:bar&quot;</span><span class="o">);</span>
+		<span class="n">dataSource</span><span class="o">.</span><span class="na">getConnection</span><span class="o">();</span>
+	<span class="o">}</span>
+<span class="o">}</span></code></pre></figure>
+
+<h4 id="3-after-compiling-the-class-start-it-with-java-debugger-jdb">3. After compiling the class, start it with Java Debugger (jdb)</h4>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>jdb -classpath \
+  lib/ojdbc7_g.jar:lib/oraclepki.jar:lib/osdt_cert.jar:lib/osdt_core.jar:./ \
+  -Doracle.net.wallet_location=/home/oracle/wallet \
+  io.aregger.wallet.OpenWallet</code></pre></figure>
+
+<p>ojdbc7_g.jar is the jdbc driver compiled with debugging information.</p>
+
+<p>oraclepki.jar, osdt_cert.jar and osdt_core.jar are needed when working with Oracle wallets.</p>
+
+<h4 id="4-after-starting-the-program-with-jdb-a-breakpoint-can-be-set-and-the-program-execution-can-be-continued">4. After starting the program with jdb, a breakpoint can be set and the program execution can be continued</h4>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>&gt; stop at oracle.jdbc.driver.PhysicalConnection:1853
+&gt; run</code></pre></figure>
+
+<p>The position of the breakpoint depends on the jdbc version. In this case 12.1.0.2 was used.</p>
+
+<p>Shortly after running the program, jdb should output the following:</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>Breakpoint hit: &quot;thread=main&quot;, oracle.jdbc.driver.PhysicalConnection.getSecretStoreCredentials(), line=1,853 bci=162</code></pre></figure>
+
+<p>This is the point where you have access to all the entries in the wallet in cleartext</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>main[1] print secretStore.b.d.entrySet()
+ secretStore.b.d.entrySet() = &quot;[oracle.security.client.password1=oracle.security.pki.r@74751b3,
+                                oracle.security.client.username1=oracle.security.pki.r@741a8937,
+                                oracle.security.client.connect_string1=oracle.security.pki.r@306e95ec]&quot;</code></pre></figure>
+
+<p>Dump the password</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>main[1] dump secretStore.b.d.entrySet().toArray()[0].getValue().a
+ secretStore.b.d.entrySet().toArray()[0].getValue().a = {
+m, y, P, a, s, s
+}</code></pre></figure>
+
+<p>Dump the username</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>main[1] dump secretStore.b.d.entrySet().toArray()[1].getValue().a
+ secretStore.b.d.entrySet().toArray()[1].getValue().a = {
+m, y, U, s, e, r
+}</code></pre></figure>
+
+<p>Dump the connection string</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>main[1] dump secretStore.b.d.entrySet().toArray()[2].getValue().a
+ secretStore.b.d.entrySet().toArray()[2].getValue().a = {
+o, r, a, c, l, e, l, i, n, u, x, :, 1, 5, 2, 1, :, o, r, c, l, 1, 2, 1
+}</code></pre></figure>
+
+<h4 id="conclusion">Conclusion</h4>
+
+<p>Extracting passwords from a SSO wallet is easy and only takes a little bit more effort than extracting it from a cleartext property file. In this example the wallet was created with orapki and the -auto_login_local option, so the above steps have to be executed on the machine where the wallet was created. If the wallet was created with mkstore, it can be copied and the steps to extract the passwords can later be executed on a different machine.</p>
+
+<p>For security reasons you should consider the following points:</p>
+
+<ol>
+  <li>Restrict filesystem access to your wallet (this should be obvious).</li>
+  <li>If possible don’t use the autologin option. This means you have to manually enter a password each time you want to start your application, which is often not feasible.</li>
+  <li>If you really have to use a SSO wallet, create it with the <code>-auto_login_local</code> option, so it cannot be used after copying to other machines.</li>
+  <li>Prevent your application user to connect from other hosts than the application server.</li>
+</ol>
+
+<p><strong>Update 2016-05-22:</strong> I just found a project on github which makes the whole password extraction from SSO wallets very easy: <a href="https://github.com/tejado/ssoDecrypt">https://github.com/tejado/ssoDecrypt</a></p>
+
+
+    <a href="/beware-of-the-oracle-wallet-autologin-option/#comments">Comment</a>
+  </div>
+  
+</div>
+
+<div class="pagination">
+  
+    <span class="pagination-item older">Older</span>
+  
+  
+    
+      <a class="pagination-item newer" href="/page2">Newer</a>
+    
+  
+</div>
+
+    </div>
+
+  </body>
+</html>

@@ -1,0 +1,1387 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.6">Jekyll</generator><link href="https://blog.aregger.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://blog.aregger.io/" rel="alternate" type="text/html" /><updated>2019-12-12T07:04:20+01:00</updated><id>https://blog.aregger.io/feed.xml</id><title type="html">blog.aregger.io</title><subtitle>A blog about Oracle, SQL and Java</subtitle><author><name>taregger</name></author><entry><title type="html">Reported SQL Plan Line ID and Adaptive Plans</title><link href="https://blog.aregger.io/2019/12/12/reported-sql-plan-line-id-and-adaptive-plans/" rel="alternate" type="text/html" title="Reported SQL Plan Line ID and Adaptive Plans" /><published>2019-12-12T00:00:00+01:00</published><updated>2019-12-12T00:00:00+01:00</updated><id>https://blog.aregger.io/2019/12/12/reported-sql-plan-line-id-and-adaptive-plans</id><content type="html" xml:base="https://blog.aregger.io/2019/12/12/reported-sql-plan-line-id-and-adaptive-plans/">&lt;p&gt;If no real time SQL monitor report is available I often sample &lt;code&gt;v$session&lt;/code&gt; or do aggregations over &lt;code&gt;v$active_session_history&lt;/code&gt; or &lt;code&gt;dba_hist_active_sess_history&lt;/code&gt; and group by the column &lt;code&gt;sql_plan_line_id&lt;/code&gt; to find out where most of the time is spent.&lt;/p&gt;
+
+&lt;p&gt;This blog post shows that you should be aware of whether or not an adaptive plan is used when using this data. So, let’s create a small demo.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;create&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t1&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c1&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;number&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c2&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;varchar2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;create&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t2&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c1&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;number&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c2&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;varchar2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;create&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i1&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;create&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i2&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+
+&lt;span class=&quot;k&quot;&gt;insert&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;into&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t1&lt;/span&gt; 
+  &lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;trunc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dbms_random&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lpad&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;*&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;*&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dual&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;connect&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;by&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rownum&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;e5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;insert&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;into&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t2&lt;/span&gt; 
+  &lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;trunc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dbms_random&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;100000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lpad&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;*&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;*&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dual&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;connect&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;by&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rownum&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;e5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;commit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;exec&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dbms_stats&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;gather_table_stats&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;user&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;T1&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;exec&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dbms_stats&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;gather_table_stats&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;user&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;T2&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Now let’s display the execution plan of a simple query joining the two tables:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;explain&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;plan&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t1&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;join&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t2&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dbms_xplan&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;display&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;format&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;BASIC +NOTE&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;This is the plan Oracle came up with:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;Plan hash value: 1838229974
+
+-----------------------------------
+| Id  | Operation          | Name |
+-----------------------------------
+|   0 | SELECT STATEMENT   |      |
+|   1 |  HASH JOIN         |      |
+|   2 |   TABLE ACCESS FULL| T1   |
+|   3 |   TABLE ACCESS FULL| T2   |
+-----------------------------------
+
+Note
+-----
+   - this is an adaptive plan
+
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Now we execute the query:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t1&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;join&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t2&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The query returns 0 rows as the generated numbers in the join columns are not overlapping. In my case it ran for about 6 seconds. I then used the following query to get a rough idea where in the execution plan Oracle spent most of the time.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;sql_plan_hash_value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;sql_plan_line_id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;count&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v$active_session_history&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;where&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;session_id&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys_context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;userenv&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;sid&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sample_time&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sysdate&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;interval&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;10&amp;#39;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;second&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;group&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;by&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sql_id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;sql_plan_hash_value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;sql_plan_line_id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Here’s the output:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;SQL_PLAN_HASH_VALUE SQL_PLAN_LINE_ID   COUNT(*)
+------------------- ---------------- ----------
+         1838229974                1          4
+         1838229974                8          2
+
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Oracle reports two samples where it spent time on plan line id 8, but in the execution plan there is no such plan line id. As the plan is an adaptive plan, it’s pretty obvious that this must be the issue here. So we display the plan with the &lt;code&gt;ADAPTIVE&lt;/code&gt; formatting option, which also displays skipped operations.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dbms_xplan&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;display&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;format&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;BASIC +NOTE +ADAPTIVE&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;pre&gt;&lt;code&gt;Plan hash value: 1838229974
+
+----------------------------------------------
+| Id  | Operation                     | Name |
+----------------------------------------------
+|   0 | SELECT STATEMENT              |      |
+|   1 |  HASH JOIN                    |      |
+|-  2 |   NESTED LOOPS                |      |
+|-  3 |    NESTED LOOPS               |      |
+|-  4 |     STATISTICS COLLECTOR      |      |
+|   5 |      TABLE ACCESS FULL        | T1   |
+|-  6 |     INDEX RANGE SCAN          | I2   |
+|-  7 |    TABLE ACCESS BY INDEX ROWID| T2   |
+|   8 |   TABLE ACCESS FULL           | T2   |
+----------------------------------------------
+
+Note
+-----
+   - this is an adaptive plan (rows marked '-' are inactive)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Whether or not an operation is skipped in a specific execution plan is stored in the &lt;code&gt;other_xml&lt;/code&gt; column of &lt;code&gt;v$sql_plan&lt;/code&gt;. Therefore we could extract this information to get a mapping between the reported plan line ids and the plan line ids shown in the execution plan 
+when calling the &lt;code&gt;dbms_xplan.display*&lt;/code&gt; functions without the &lt;code&gt;ADAPTIVE&lt;/code&gt; formatting option.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;plan_line_ids&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; 
+  &lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;extractvalue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;/row/@op&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;op&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; 
+         &lt;span class=&quot;n&quot;&gt;extractvalue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;/row/@skp&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;skip&lt;/span&gt; 
+  &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; 
+    &lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;xmlsequence&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;extract&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;xmltype&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;other_xml&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;/*/display_map/row&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; 
+    &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v$sql_plan&lt;/span&gt; 
+    &lt;span class=&quot;c1&quot;&gt;-- change plan_hash_value and child_number&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;where&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;plan_hash_value&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1838229974&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;child_number&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; 
+    &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;other_xml&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;null&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; 
+&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;o&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;op&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;plan_line_id_adaptive&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; 
+  &lt;span class=&quot;n&quot;&gt;o&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;op&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; 
+    &lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;count&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; 
+    &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;plan_line_ids&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; 
+    &lt;span class=&quot;k&quot;&gt;where&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;op&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;o&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;op&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;skip&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;1&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;plan_line_id&lt;/span&gt; 
+&lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;plan_line_ids&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;o&lt;/span&gt; 
+&lt;span class=&quot;k&quot;&gt;where&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;o&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;skip&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;0&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Output:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;PLAN_LINE_ID_ADAPTIVE     PLAN_LINE_ID
+------------------------- ------------
+1                                    1
+5                                    2
+8                                    3
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;This demo showed an example where it was obvious that there’s something wrong, because the reported plan line id simply didn’t exist in the plan. Depending on the reported line ids it is not necessarily obvious at first. So if you’re using the &lt;code&gt;sql_plan_line_id&lt;/code&gt; from &lt;code&gt;v$session&lt;/code&gt;, &lt;code&gt;v$active_session_history&lt;/code&gt; or &lt;code&gt;dba_hist_active_sess_history&lt;/code&gt; to determine where in the execution plan Oracle is spending time, always make sure to check whether you’re looking at an adaptive plan or not.&lt;/p&gt;</content><author><name>Thomas Aregger</name></author><summary type="html">If no real time SQL monitor report is available I often sample v$session or do aggregations over v$active_session_history or dba_hist_active_sess_history and group by the column sql_plan_line_id to find out where most of the time is spent.</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://blog.aregger.io/public/twitter_default_card.png" /><media:content medium="image" url="https://blog.aregger.io/public/twitter_default_card.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">PL/SQL Package Types in JDBC</title><link href="https://blog.aregger.io/2019/08/07/plsql_package_types_in_jdbc/" rel="alternate" type="text/html" title="PL/SQL Package Types in JDBC" /><published>2019-08-07T00:00:00+02:00</published><updated>2019-08-07T00:00:00+02:00</updated><id>https://blog.aregger.io/2019/08/07/plsql_package_types_in_jdbc</id><content type="html" xml:base="https://blog.aregger.io/2019/08/07/plsql_package_types_in_jdbc/">&lt;p&gt;Let’s suppose you have the following PL/SQL package source:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;create&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;replace&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;package&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;my_pkg&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;is&lt;/span&gt;
+   &lt;span class=&quot;k&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t_varchar2_300&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;of&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;varchar2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;200&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;/&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;In older versions of Oracle if you tried to use the type &lt;code&gt;t_varchar2_300&lt;/code&gt; in Java you got an exception.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;myArray&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;createOracleArray&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;MY_PKG.T_VARCHAR2_300&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[]{&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;X&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;Y&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;});&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stmt&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;prepareStatement&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;select ...&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;stmt&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;setArray&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;myArray&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;stmt&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;executeQuery&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;This would throw &lt;code&gt;java.sql.SQLException: invalid name pattern: MY_PKG.T_VARCHAR2_300&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;Until Oracle 12.1 types declared in PL/SQL packages were not supported via JDBC and you had to create a standalone type:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;create&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t_varchar2_300&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;of&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;varchar2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;200&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Luckily with 12.1 you can now use types declared in PL/SQL. Both the database and the JDBC driver need to be 12.1 or newer.&lt;/p&gt;
+
+&lt;p&gt;This makes it possible to avoid ugly workarounds like creating standalone types that would logically belong to a package and also enables you to group related types together in a single package.&lt;/p&gt;
+
+&lt;p&gt;For the sake of completeness here’s the full example code:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;PlsqlPackageTypes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+
+  &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CONNECTION_STRING&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 
+      &lt;span class=&quot;s&quot;&gt;&amp;quot;jdbc:oracle:thin:scott/tiger@oracle-database-183:1521/orcl1803&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+
+  &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SQL&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;select * from (&amp;quot;&lt;/span&gt;
+      &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot; select &amp;#39;X&amp;#39; as xyz from dual &amp;quot;&lt;/span&gt;
+      &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot; union all select &amp;#39;Y&amp;#39; from dual&amp;quot;&lt;/span&gt;
+      &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot; union all select &amp;#39;Z&amp;#39; from dual) &amp;quot;&lt;/span&gt;
+      &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;where xyz in (select column_value from table(?))&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+
+  &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;throws&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SQLException&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;OracleConnection&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;OracleConnection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DriverManager&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getConnection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CONNECTION_STRING&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;myArray&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;createOracleArray&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;MY_PKG.T_VARCHAR2_300&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; 
+        &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[]{&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;X&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;Z&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;});&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stmt&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;prepareStatement&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;stmt&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;setArray&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;myArray&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;ResultSet&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stmt&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;executeQuery&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;while&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;())&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;xyz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getString&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;XYZ&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;System&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;out&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;println&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;xyz&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Other examples can be found in the &lt;a href=&quot;https://docs.oracle.com/en/database/oracle/oracle-database/19/jjdbc/JDBC-reference-information.html#GUID-E77C2AE8-E22B-48BF-A4CB-010CBC8FE7C2&quot;&gt;Oracle JDBC Guide&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Unfortunately, package types still only work in &lt;code&gt;SELECT&lt;/code&gt; statements and cannot be used in DML. This is a general limitation in Oracle and is not specific to JDBC.&lt;/p&gt;</content><author><name>Thomas Aregger</name></author><summary type="html">Let’s suppose you have the following PL/SQL package source: create or replace package my_pkg is type t_varchar2_300 is table of varchar2(200); end; /</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://blog.aregger.io/public/twitter_default_card.png" /><media:content medium="image" url="https://blog.aregger.io/public/twitter_default_card.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">JDBC Statement Caching: Implicit vs. Explicit</title><link href="https://blog.aregger.io/2019/08/05/jdbc-statement-caching/" rel="alternate" type="text/html" title="JDBC Statement Caching: Implicit vs. Explicit" /><published>2019-08-05T00:00:00+02:00</published><updated>2019-08-05T00:00:00+02:00</updated><id>https://blog.aregger.io/2019/08/05/jdbc-statement-caching</id><content type="html" xml:base="https://blog.aregger.io/2019/08/05/jdbc-statement-caching/">&lt;p&gt;The Oracle JDBC driver offers two methods for client-side statement caching. Enabling statement caching changes the behavior when the client closes a prepared statement. With statement caching disabled, the driver simply closes the statement. This is a server call which closes the associated cursor on the database. When the same statement is executed again it has to be at least soft parsed again. With statement caching enabled, the statement and its associated database cursor are not closed. Instead the statement is put in a pool (basically a LRU list of statements) for reuse. This way soft parses can be avoided which saves database resources and improves performance, which is the main reason to use statement caching.&lt;/p&gt;
+
+&lt;p&gt;At a first glance, the two statement caching methods differ mainly in the way a statement can be retrieved from the cache, but they also differ in what kind of data is cached. There’s no detailed information about the latter. This post tries to shed some light into that area and reveals some interesting behavior. All tests where done with the 18.3 JDBC driver. If you want to test your driver version, check out the code on &lt;a href=&quot;https://github.com/TAregger/oracle-statement-caching&quot;&gt;Github&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h1 id=&quot;cached-statement-retrieval&quot;&gt;Cached Statement Retrieval&lt;/h1&gt;
+&lt;p&gt;First, let’s have a look at some code to recap how these two methods are used.&lt;/p&gt;
+
+&lt;p&gt;Please note that while the examples always use &lt;code&gt;PreparedStatement&lt;/code&gt;, caching is also done for &lt;code&gt;CallableStatement&lt;/code&gt; but not for plain &lt;code&gt;Statement&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;implicit-caching&quot;&gt;Implicit Caching&lt;/h2&gt;
+&lt;p&gt;The following code snippet demonstrates the use of implicit statement caching:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;c1&quot;&gt;// Enable implicit cache. Cache 5 statements.&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;setImplicitCachingEnabled&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;setStatementCacheSize&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// Prepare statement&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;PreparedStatement&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;statement&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;prepareStatement&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;select * from dual&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// Execute and fetch ...&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// Statement is not closed but put it in the cache&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;statement&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;close&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// Statement is retrieved from the cache&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;statement&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;prepareStatement&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;select * from dual&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The code dealing with the prepared statement looks exactly the same as it would without caching enabled. When preparing a statement, the cache is searched for an already existing statement with the exact same SQL text and result set type. This has the huge advantage that you could benefit from it without any code changes. It’s transparent to the client and therefore can be used with any framework in use. The only thing that the client needs to do, is to enable it either on the connection or on the data source.&lt;/p&gt;
+
+&lt;h2 id=&quot;explicit-caching&quot;&gt;Explicit Caching&lt;/h2&gt;
+&lt;p&gt;Let’s have a look at code using explicit statement caching:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;c1&quot;&gt;// Enable explicit cache. Cache 5 statements.&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;setExplicitCachingEnabled&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;setStatementCacheSize&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// Prepare statement&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;OraclePreparedStatement&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;statement&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;OraclePreparedStatement&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;prepareStatement&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;select * from dual&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// Execute and fetch ...&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// Statement is not closed but put it in the cache&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;statement&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;closeWithKey&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;myCacheKey&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// Statement is retrieved from the cache&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getStatementWithKey&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;myCacheKey&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The main difference to implicit caching is how the statement is put into the cache and how it’s retrieved from it. The statement has to be closed by providing a key. This &lt;code&gt;closeWithKey&lt;/code&gt; method is declared in &lt;code&gt;OraclePreparedStatement&lt;/code&gt; and is not available in &lt;code&gt;PreparedStatement&lt;/code&gt;. The cached statement can be retrieved with the same key. Again, &lt;code&gt;getStatementWithKey&lt;/code&gt; needs an &lt;code&gt;OracleConnection&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;So explicit caching needs some more work to be used in your code and leads to tighter coupling to Oracle specific classes and methods. I’m not aware of any data access framework supporting it.&lt;/p&gt;
+
+&lt;h1 id=&quot;cached-data&quot;&gt;Cached Data&lt;/h1&gt;
+&lt;p&gt;It looks like the two methods differ mainly in how statements are put in and retrieved from the cache. But there’s one more major difference. The &lt;a href=&quot;https://docs.oracle.com/en/database/oracle/oracle-database/18/jjdbc/statement-and-resultset-caching.html&quot;&gt;Oracle JDBC Guide&lt;/a&gt; states the following:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Because explicit Statement caching retains statement data and state as well as metadata, it has a performance edge over implicit Statement caching, which retains only metadata. However, you must be cautious when using this type of caching, because explicit Statement caching saves all three types of information for reuse and you may not be aware of what data and state are retained from prior use of the statements.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;The documentation talks about state, data and metadata. I don’t know what kind of data is supposed to fit into which of these categories. So, after some tests I defined the following categories to illustrate the caching behavior:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Properties&lt;/strong&gt; - Properties set on the statement, which don’t retrieve or send any user data to the database server.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Data&lt;/strong&gt; - User data or statement metadata to be sent or retrieved from the database server.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The test code can be found on &lt;a href=&quot;https://github.com/TAregger/oracle-statement-caching&quot;&gt;Github&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;properties&quot;&gt;Properties&lt;/h2&gt;
+&lt;p&gt;The following table shows the different statement properties and whether these settings are retained when a statement is retrieved from the cache.&lt;/p&gt;
+
+&lt;style type=&quot;text/css&quot;&gt;
+.tg .tg-c3ow{border-color:inherit;text-align:center;vertical-align:top}
+.tg .tg-c3ow-break{word-break: break-all}
+.tg .tg-c3ow-red{border-color:inherit;text-align:center;vertical-align:top;color:#bf616a}
+.tg .tg-c3ow-green{border-color:inherit;text-align:center;vertical-align:top;color:green}
+&lt;/style&gt;
+
+&lt;table class=&quot;tg&quot;&gt;
+  &lt;tr&gt;
+    &lt;th class=&quot;tg-0pky&quot;&gt;Property&lt;/th&gt;
+    &lt;th class=&quot;tg-0pky&quot;&gt;Used method to set the property&lt;/th&gt;
+    &lt;th class=&quot;tg-c3ow&quot;&gt;Implicit&lt;/th&gt;
+    &lt;th class=&quot;tg-c3ow&quot;&gt;Explicit&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class=&quot;tg-0pky&quot;&gt;Result Set Type&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-break&quot;&gt;&lt;code&gt;Connection#prepareStatement&lt;/code&gt;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow&quot;&gt;N/A&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-green&quot;&gt;&amp;check;&lt;/td&gt; &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class=&quot;tg-0pky&quot;&gt;Result Set Concurrency&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-break&quot;&gt;&lt;code&gt;Connection#prepareStatement&lt;/code&gt;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow&quot;&gt;N/A&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-green&quot;&gt;&amp;check;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class=&quot;tg-0pky&quot;&gt;Fetch Size&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-break&quot;&gt;&lt;code&gt;OraclePreparedStatement#setRowPrefetch&lt;/code&gt;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-red&quot;&gt;&amp;cross;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-green&quot;&gt;&amp;check;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class=&quot;tg-0pky&quot;&gt;LOB Prefetch Size&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-break&quot;&gt;&lt;code&gt;OraclePreparedStatement#setLobPrefetchSize&lt;/code&gt;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-green&quot;&gt;&amp;check;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-green&quot;&gt;&amp;check;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class=&quot;tg-0pky&quot;&gt;Max Field Size&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-break&quot;&gt;&lt;code&gt;OraclePreparedStatement#setMaxFieldSize&lt;/code&gt;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-red&quot;&gt;&amp;cross;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-green&quot;&gt;&amp;check;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class=&quot;tg-0pky&quot;&gt;Query Timeout&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-break&quot;&gt;&lt;code&gt;OraclePreparedStatement#setQueryTimeout&lt;/code&gt;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-red&quot;&gt;&amp;cross;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-green&quot;&gt;&amp;check;&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;h3 id=&quot;result-set-type-and-concurrency&quot;&gt;Result Set Type and Concurrency&lt;/h3&gt;
+&lt;p&gt;These properties are set by calling &lt;code&gt;Connection#prepareStatement&lt;/code&gt;. For implicitly cached statements they are, together with the SQL text, part of the cache key. Therefore, a prepared statement is only found in the cache when these 2 properties match.&lt;/p&gt;
+
+&lt;h3 id=&quot;lob-prefetch-size&quot;&gt;LOB Prefetch Size&lt;/h3&gt;
+&lt;p&gt;As the regular fetch size setting is not retained in implicitly cached statements, I expected the same for LOB prefetch size. Interestingly this is not the case.&lt;/p&gt;
+
+&lt;h2 id=&quot;data&quot;&gt;Data&lt;/h2&gt;
+&lt;p&gt;The table below shows a summary of which kind of data is cached by which method. There are some interesting irregularities explained afterwards.&lt;/p&gt;
+&lt;style type=&quot;text/css&quot;&gt;
+.tg .tg-c3ow{border-color:inherit;text-align:center;vertical-align:top}
+.tg .tg-c3ow-red{border-color:inherit;text-align:center;vertical-align:top;color:#bf616a}
+.tg .tg-c3ow-green{border-color:inherit;text-align:center;vertical-align:top;color:green}
+&lt;/style&gt;
+
+&lt;table class=&quot;tg&quot;&gt;
+  &lt;tr&gt;
+    &lt;th class=&quot;tg-0pky&quot;&gt;Data&lt;/th&gt;
+    &lt;th class=&quot;tg-c3ow&quot;&gt;Implicit&lt;/th&gt;
+    &lt;th class=&quot;tg-c3ow&quot;&gt;Explicit&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class=&quot;tg-0pky&quot;&gt;Result Set&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-red&quot;&gt;&amp;cross;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-red&quot;&gt;&amp;cross;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class=&quot;tg-0pky&quot;&gt;Result Set Metadata&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-green&quot;&gt;&amp;check;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-green&quot;&gt;&amp;check;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class=&quot;tg-0pky&quot;&gt;Parameter Metadata&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-green&quot;&gt;&amp;check;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-red&quot;&gt;&amp;cross;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class=&quot;tg-0pky&quot;&gt;Update Count&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-green&quot;&gt;&amp;check;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-green&quot;&gt;&amp;check;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class=&quot;tg-0pky&quot;&gt;Generated Keys&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-red&quot;&gt;&amp;cross;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-green&quot;&gt;&amp;check;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class=&quot;tg-0pky&quot;&gt;Bind Data&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-red&quot;&gt;&amp;cross;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-green&quot;&gt;&amp;check;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class=&quot;tg-0pky&quot;&gt;Batches&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-red&quot;&gt;&amp;cross;&lt;/td&gt;
+    &lt;td class=&quot;tg-c3ow-red&quot;&gt;&amp;cross;&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+&lt;h3 id=&quot;result-set&quot;&gt;Result Set&lt;/h3&gt;
+&lt;p&gt;When calling &lt;code&gt;Statement#close&lt;/code&gt; the associated &lt;code&gt;ResultSet&lt;/code&gt; is closed as well. This is also true when statement caching is enabled. Any subsequent calls on a result set returned by &lt;code&gt;Statement#getResultSet&lt;/code&gt; will result in a &lt;code&gt;SQLException&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;result-set-metadata&quot;&gt;Result Set Metadata&lt;/h3&gt;
+&lt;p&gt;Result set metadata (e.g. retrieved by &lt;code&gt;PreparedStatement#getMetaData&lt;/code&gt;)  is retained by both explicit and implicit statement caching as it is stated in the documentation.&lt;/p&gt;
+
+&lt;h3 id=&quot;parameter-metadata&quot;&gt;Parameter Metadata&lt;/h3&gt;
+&lt;p&gt;As one would expect, parameter metadata (retrieved by &lt;code&gt;PreparedStatement#getParameterMetaData&lt;/code&gt;) behaves exactly the same as result set metadata regarding caching. But interestingly parameter metadata is only cached when implicit caching is enabled. I assume it is because internally the JDBC driver executes some statements to retrieve this information from the database. With implicit caching enabled, these statements are automatically cached as well.&lt;/p&gt;
+
+&lt;h3 id=&quot;update-count&quot;&gt;Update Count&lt;/h3&gt;
+&lt;p&gt;After calling &lt;code&gt;PreparedStatement#executeUpdate&lt;/code&gt; to insert or update records, the number of affected rows can be returned by calling &lt;code&gt;Statement#getUpdateCount&lt;/code&gt;. The update count is retained for statements put into the cache. Interestingly this is also the case for implicitly cached statements. I don’t see any reason why this value is not reset for implicitly cached statements, and it’s not the behavior described in the documentation.&lt;/p&gt;
+
+&lt;p&gt;This is only a problem if &lt;code&gt;Statement#getUpdateCount&lt;/code&gt; is called after retrieving a statement from the cache but before doing an update. In this case the method reports the update count from the previous execution, otherwise the value simply gets overwritten when an update statement is executed.
+The reported row count also depends on whether the &lt;code&gt;Statement#getUpdateCount&lt;/code&gt; was called on the statement before it was put back into the cache. It either reports the updated rows (if the method was not called previously) or -1, which means the value was already retrieved.&lt;/p&gt;
+
+&lt;h3 id=&quot;generated-keys&quot;&gt;Generated Keys&lt;/h3&gt;
+&lt;p&gt;By calling &lt;code&gt;Statement#getGeneratedKeys&lt;/code&gt; one can retrieve the keys generated by an insert statement. In fact, any columns could be returned, but it makes most sense to return generated keys, as they are not already known by the client.
+This method returns a regular &lt;code&gt;ResultSet&lt;/code&gt;, but unlike the one returned by &lt;code&gt;Statement#getResultSet&lt;/code&gt; this one is retained for explicitly cached statements.&lt;/p&gt;
+
+&lt;h3 id=&quot;bind-data&quot;&gt;Bind Data&lt;/h3&gt;
+&lt;p&gt;Oracle uses three different ways for binding data depending on data size and type of SQL statement (SQL or PL/SQL): direct, stream or LOB binding. See the &lt;a href=&quot;https://docs.oracle.com/en/database/oracle/oracle-database/18/jjdbc/accessing-and-manipulating-Oracle-data.html#GUID-9CF0FDC2-7BD5-4F96-8AED-F58DC30BE62B&quot;&gt;documentation&lt;/a&gt; for more information. Irrespective of the method used, bind data is always cached by explicit statement caching. You should be aware of this, as it can hugely impact your memory footprint when dealing with LOBs or other large data. Also keep it in mind when sizing the statement cache (&lt;code&gt;OracleConnection#setStatementCacheSize&lt;/code&gt;).&lt;/p&gt;
+
+&lt;h3 id=&quot;batches&quot;&gt;Batches&lt;/h3&gt;
+&lt;p&gt;To minimize round trips between the client and the database, a common technique is to batch bind data (&lt;code&gt;PreparedStatement#addBatch&lt;/code&gt;) and send it to the database in one go. In contrast to non-batched statements where bind data is cached by explicit statement caching, it is not cached when using batches. Batches are always cleared when a statement is put into the cache.&lt;/p&gt;
+
+&lt;h1 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h1&gt;
+&lt;p&gt;Most data access frameworks nowadays take away the burden of SQL cursor handling. One of the benefits is, that it avoids cursor leaks, but on the other hands leads to more soft parses and cursor creation on the database side. JDBC statement caching does mitigate these issues, so using it is strongly recommended.&lt;/p&gt;
+
+&lt;p&gt;Implicit caching is very easy to use and there is no reason not to enable it.&lt;/p&gt;
+
+&lt;p&gt;Explicit caching requires changes in the application code. According to Oracle it can give you better performance because more data is cached. Whether this is only true if you actually reuse data from previously cached statements or also when you override this data (think of bind data) has to be thoroughly tested.&lt;/p&gt;
+
+&lt;p&gt;After all, you are not limited to use only one of the caching methods but can use both simultaneously and benefit from the strengths of each method. For this reason, you should be aware of the different data that is retained by the two caching methods. The tests have shown the behavior is not always what one would expect after reading the documentation.&lt;/p&gt;
+
+&lt;h1 id=&quot;references&quot;&gt;References&lt;/h1&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://docs.oracle.com/en/database/oracle/oracle-database/18/jjdbc/statement-and-resultset-caching.html&quot;&gt;Oracle JDBC Developer’s Guide: Statement Caching&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://docs.oracle.com/en/database/oracle/oracle-database/18/jjdbc/accessing-and-manipulating-Oracle-data.html#GUID-9CF0FDC2-7BD5-4F96-8AED-F58DC30BE62B&quot;&gt;Oracle JDBC Developer’s Guide: Binding Methods&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/TAregger/oracle-statement-caching&quot;&gt;Testcases on Github&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><author><name>Thomas Aregger</name></author><summary type="html">The Oracle JDBC driver offers two methods for client-side statement caching. Enabling statement caching changes the behavior when the client closes a prepared statement. With statement caching disabled, the driver simply closes the statement. This is a server call which closes the associated cursor on the database. When the same statement is executed again it has to be at least soft parsed again. With statement caching enabled, the statement and its associated database cursor are not closed. Instead the statement is put in a pool (basically a LRU list of statements) for reuse. This way soft parses can be avoided which saves database resources and improves performance, which is the main reason to use statement caching.</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://blog.aregger.io/assets/2019-08-05-jdbc-statement-caching/thumbnail.png" /><media:content medium="image" url="https://blog.aregger.io/assets/2019-08-05-jdbc-statement-caching/thumbnail.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">SGA areas in x$ksmmem</title><link href="https://blog.aregger.io/2019/03/18/sga-areas-in-x$ksmmem/" rel="alternate" type="text/html" title="SGA areas in x$ksmmem" /><published>2019-03-18T00:00:00+01:00</published><updated>2019-03-18T00:00:00+01:00</updated><id>https://blog.aregger.io/2019/03/18/sga-areas-in-x$ksmmem</id><content type="html" xml:base="https://blog.aregger.io/2019/03/18/sga-areas-in-x$ksmmem/">&lt;p&gt;The fixed table &lt;code&gt;x$ksmmem&lt;/code&gt; (&lt;strong&gt;K&lt;/strong&gt;ernel Layer, &lt;strong&gt;S&lt;/strong&gt;ervice Layer, &lt;strong&gt;M&lt;/strong&gt;emory Management, &lt;strong&gt;MEM&lt;/strong&gt;ory) is basically a memory map of your SGA. It contains a row for each memory address (&lt;code&gt;addr&lt;/code&gt;) and the value stored at this location (&lt;code&gt;ksmmmval&lt;/code&gt;). This post shows which areas were accessible over this structure in older versions of Oracle, and more importantly, which areas are not present anymore in more recent versions.&lt;/p&gt;
+
+&lt;p&gt;In all examples ASMM is enabled, AMM disabled and platform is Linux x86_64.&lt;/p&gt;
+
+&lt;h2 id=&quot;version-112&quot;&gt;Version 11.2&lt;/h2&gt;
+&lt;p&gt;Let’s first have a look at the shared memory segments allocated by Oracle.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;oradebug&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;setmypid&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;oradebug&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ipc&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;...
+ Area #0 `Fixed Size&amp;#39; containing Subareas 0-0
+  Total size 0000000000221a50 Minimum Subarea size 00000000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      0        0    32768 0x00000060000000 0x00000060000000
+                              Subarea size     Segment size
+                          0000000000222000 0000000008c00000
+ Area #1 `Variable Size&amp;#39; containing Subareas 4-4
+  Total size 0000000035c00000 Minimum Subarea size 00400000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      1        4    65537 0x00000068c00000 0x00000068c00000
+                              Subarea size     Segment size
+                          0000000035c00000 0000000035c00000
+ Area #2 `Redo Buffers&amp;#39; containing Subareas 1-1
+  Total size 0000000008565000 Minimum Subarea size 00000000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      2        1    32768 0x00000060222000 0x00000060222000
+                              Subarea size     Segment size
+                          0000000008565000 0000000008c00000
+ Area #3 `Base Allocator Control&amp;#39; containing Subareas 3-3
+  Total size 0000000000002000 Minimum Subarea size 00000000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      3        3    32768 0x00000068bfe000 0x00000068bfe000
+                              Subarea size     Segment size
+                          0000000000002000 0000000008c00000
+ Area #4 `Slab Allocator Control&amp;#39; containing Subareas 2-2
+  Total size 0000000000477000 Minimum Subarea size 00000000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      4        2    32768 0x00000068787000 0x00000068787000
+                              Subarea size     Segment size
+                          0000000000477000 0000000008c00000
+ Area #5 `skgm overhead&amp;#39; containing Subareas 5-5
+  Total size 0000000000003000 Minimum Subarea size 00000000
+   Area  Subarea    Shmid      Stable Addr      Actual Addr
+      5        5    98306 0x0000009e800000 0x0000009e800000
+                              Subarea size     Segment size
+                          0000000000003000 0000000000200000
+...&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;As we can see, there are 3 different segments allocated (Shmid 32768, 65537 and 98306).&lt;/p&gt;
+
+&lt;p&gt;By taking the values from &lt;em&gt;Actual Addr&lt;/em&gt; as the start address and &lt;em&gt;Actual Addr&lt;/em&gt; + &lt;em&gt;Total size&lt;/em&gt;  as the end address, we can write a simple query to see which areas are externalized in &lt;code&gt;x$ksmmem&lt;/code&gt;.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;area&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;count&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+ &lt;span class=&quot;k&quot;&gt;select&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;0000000060000000&amp;#39;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;0000000060221A50&amp;#39;&lt;/span&gt;
+   &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Fixed Size&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;0000000068C00000&amp;#39;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;000000009E800000&amp;#39;&lt;/span&gt;
+   &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Variable Size&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;0000000060222000&amp;#39;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;0000000068787000&amp;#39;&lt;/span&gt; 
+   &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Redo Buffers&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;0000000068BFE000&amp;#39;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;0000000068C00000&amp;#39;&lt;/span&gt; 
+   &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Base Allocator Control&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;0000000068787000&amp;#39;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;0000000068BFE000&amp;#39;&lt;/span&gt; 
+   &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Slab Allocator Control&amp;#39;&lt;/span&gt; 
+  &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;000000009E800000&amp;#39;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;000000009E803000&amp;#39;&lt;/span&gt; 
+   &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;skgm overhead&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;area&lt;/span&gt;
+ &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x$ksmmem&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;group&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;by&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;area&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;AREA                     COUNT(*)
+---------------------- ----------
+Redo Buffers             17484288
+Slab Allocator Control     585216
+Variable Size           112135680
+Base Allocator Control       1024
+Fixed Size                 279370
+
+5 rows selected.&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;As can be seen, all SGA areas except &lt;em&gt;skgm overhead&lt;/em&gt; can be accessed over this table.&lt;/p&gt;
+
+&lt;h2 id=&quot;version-183&quot;&gt;Version 18.3&lt;/h2&gt;
+&lt;p&gt;Let’s do the same thing in 18.3.&lt;/p&gt;
+
+&lt;p&gt;Instead of listing the shared memory segments via &lt;code&gt;oradebug ipc&lt;/code&gt; we can query the new fixed table &lt;code&gt;x$ksmssinfo&lt;/code&gt; (Probably a mnemonic for (&lt;strong&gt;K&lt;/strong&gt;ernel Layer, &lt;strong&gt;S&lt;/strong&gt;ervice Layer, &lt;strong&gt;M&lt;/strong&gt;emory Management, &lt;strong&gt;S&lt;/strong&gt;hared Memory &lt;strong&gt;S&lt;/strong&gt;egment &lt;strong&gt;INFO&lt;/strong&gt;).&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt;
+ &lt;span class=&quot;ss&quot;&gt;&amp;quot;AREA NAME&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+ &lt;span class=&quot;ss&quot;&gt;&amp;quot;START ADDR&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+ &lt;span class=&quot;n&quot;&gt;to_char&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;to_number&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;&amp;quot;START ADDR&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rpad&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;X&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;X&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;&amp;quot;SIZE&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;rpad&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;0&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;X&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+ &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;END_ADDR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+ &lt;span class=&quot;ss&quot;&gt;&amp;quot;SIZE&amp;quot;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x$ksmssinfo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;AREA NAME                        START ADDR       END_ADDR                SIZE
+-------------------------------- ---------------- ----------------- ----------
+Variable Size                    0000000060C00000  0000000096400000  897581056
+Redo Buffers                     0000000096400000  000000009EBBC000  142327808
+Fixed Size                       0000000060000000  0000000060844000    8667136
+skgm overhead                    000000009EC00000  000000009EC05000      20480&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;We execute the same query as before, with only the start and end addresses changed.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;area&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;count&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+ &lt;span class=&quot;k&quot;&gt;select&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;0000000060000000&amp;#39;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;0000000060844000&amp;#39;&lt;/span&gt;
+   &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Fixed Size&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;0000000060C00000&amp;#39;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;0000000096400000&amp;#39;&lt;/span&gt;
+   &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Variable Size&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;0000000096400000&amp;#39;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;000000009EBBC000&amp;#39;&lt;/span&gt; 
+   &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Redo Buffers&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;000000009EC00000&amp;#39;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;000000009EC05000&amp;#39;&lt;/span&gt; 
+   &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;skgm overhead&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;area&lt;/span&gt;
+ &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x$ksmmem&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;group&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;by&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;area&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;AREA&lt;/span&gt;            &lt;span class=&quot;k&quot;&gt;COUNT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;------------- ----------&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;Fixed&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;Size&lt;/span&gt;       &lt;span class=&quot;mi&quot;&gt;1083204&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;As can be seen, in Oracle 18.3 only the &lt;em&gt;Fixed Size&lt;/em&gt; area is externalized in &lt;code&gt;x$ksmmem&lt;/code&gt;. In fact, this is the case since bug 19363432 (introduced in 12.1) has been fixed later in Oracle 12.1.&lt;/p&gt;
+
+&lt;p&gt;The behavior in Oracle 12.1 before applying the bugfix, is that &lt;code&gt;x$ksmmem&lt;/code&gt; also displays addresses which are not currently mapped. This leads to segmentation faults when you try to access this memory location by referring to &lt;code&gt;x$ksmmem.ksmmmval&lt;/code&gt;. Unfortunately, after applying the bugfix, all areas except &lt;em&gt;Fixed Size&lt;/em&gt; disappear from this fixed table.&lt;/p&gt;
+
+&lt;h2 id=&quot;alternatives&quot;&gt;Alternatives&lt;/h2&gt;
+&lt;p&gt;In some cases, you want to have access to the contents of shared memory for troubleshooting. &lt;code&gt;x$ksmmem&lt;/code&gt; provided a convenient way to do so, because you could use it in any query (e.g. by joining to other fixed views/tables containing memory addresses). Of course, you can still use &lt;code&gt;oradebug peek&lt;/code&gt; or any other tool you like, but it’s definitely more cumbersome.&lt;/p&gt;</content><author><name>Thomas Aregger</name></author><summary type="html">The fixed table x$ksmmem (Kernel Layer, Service Layer, Memory Management, MEMory) is basically a memory map of your SGA. It contains a row for each memory address (addr) and the value stored at this location (ksmmmval). This post shows which areas were accessible over this structure in older versions of Oracle, and more importantly, which areas are not present anymore in more recent versions.</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://blog.aregger.io/public/twitter_default_card.png" /><media:content medium="image" url="https://blog.aregger.io/public/twitter_default_card.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Strange case of ORA-01950: no privileges on tablespace</title><link href="https://blog.aregger.io/2019/01/28/strange-case-of-ora-01950-no-privileges-on-tablespace/" rel="alternate" type="text/html" title="Strange case of ORA-01950: no privileges on tablespace" /><published>2019-01-28T00:00:00+01:00</published><updated>2019-01-28T00:00:00+01:00</updated><id>https://blog.aregger.io/2019/01/28/strange-case-of-ora-01950-no-privileges-on-tablespace</id><content type="html" xml:base="https://blog.aregger.io/2019/01/28/strange-case-of-ora-01950-no-privileges-on-tablespace/">&lt;p&gt;I recently faced a strange issue where a user got an &lt;code&gt;ORA-01950: no privileges on tablespace&lt;/code&gt; while issuing some DML statement.
+A quick look on &lt;code&gt;DBA_TS_QUOTAS&lt;/code&gt; showed that the segment owner (according to &lt;code&gt;DBA_SEGMENTS&lt;/code&gt;) has unlimited quota on the reported tablespace.&lt;/p&gt;
+
+&lt;p&gt;After checking the view definition of &lt;code&gt;DBA_SEGMENTS&lt;/code&gt; and its backing view &lt;code&gt;SYS_DBA_SEGS&lt;/code&gt; I became a bit suspicious because the reported owner is taken from &lt;code&gt;SYS.OBJ$&lt;/code&gt;. Could it be, that the segment is in fact owned by a different user?&lt;/p&gt;
+
+&lt;p&gt;Bingo! Querying &lt;code&gt;SYS.SEG$&lt;/code&gt; revealed that the owner of the segment (&lt;code&gt;USER#&lt;/code&gt;) is indeed a different one than the one reported by &lt;code&gt;DBA_SEGMENTS&lt;/code&gt;. In fact, the user did not even exist anymore.&lt;/p&gt;
+
+&lt;p&gt;The following query shows all segments where the segment owner does not exist anymore:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;se&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;owner&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;se&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;segment_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;se&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;segment_type&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;seg$&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;join&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dba_segments&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;se&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;se&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;relative_fno&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;#&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;se&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;header_block&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;#&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;where&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;exists&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dba_users&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;u&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;where&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;u&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;user_id&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;user&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;#&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The query returned 2 rows. Both segments were non-partitioned primary key indexes on a partitioned table. Rebuilding the indexes fixed the issue but I’m still curious how this could happen.&lt;/p&gt;
+
+&lt;p&gt;There’s a bug on MOS (Bug 12614714) which describes a similar issue for segments for which an exchange partition operation was performed. 
+Here’s an excerpt from the note:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;ORA-1950 updating a partitioned table&lt;br /&gt;
+The user# in seg$ is not swapped after a partition exchange when the tables
+involved are in different schemas and one of the segments (partition/
+subpartition/lob fragment) is delayed, then it is likely that
+you have hit this bug.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Despite that in my case no exchange partition was performed, deferred segment creation is certainly enabled. So, I assume it has something to do with that, but I was not able to think of a scenario where this could happen, nor was I able to create a reproducible test case.&lt;/p&gt;</content><author><name>Thomas Aregger</name></author><summary type="html">I recently faced a strange issue where a user got an ORA-01950: no privileges on tablespace while issuing some DML statement. A quick look on DBA_TS_QUOTAS showed that the segment owner (according to DBA_SEGMENTS) has unlimited quota on the reported tablespace.</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://blog.aregger.io/public/twitter_default_card.png" /><media:content medium="image" url="https://blog.aregger.io/public/twitter_default_card.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">SQL Plan Baselines and the Optimizer Environment</title><link href="https://blog.aregger.io/2019/01/06/sql-plan-baselines-and-the-optimizer-environment/" rel="alternate" type="text/html" title="SQL Plan Baselines and the Optimizer Environment" /><published>2019-01-06T00:00:00+01:00</published><updated>2019-01-06T00:00:00+01:00</updated><id>https://blog.aregger.io/2019/01/06/sql-plan-baselines-and-the-optimizer-environment</id><content type="html" xml:base="https://blog.aregger.io/2019/01/06/sql-plan-baselines-and-the-optimizer-environment/">&lt;p&gt;It should be clear that a SQL Plan Baseline becomes non-reproducible if you change the underlying objects in a way that prevents the optimizer from using the given execution plan (e.g. by dropping an index used in the execution plan). In such a situation the plan baseline will be marked as non-reproducible.&lt;/p&gt;
+
+&lt;p&gt;A change in the optimizer environment can also be the reason for the optimizer not being able to reproduce a baseline. SQL Plan Baselines store a set of hints that should guide the optimizer to use the desired plan. But in some situations, not all the required hints to reproduce the exact same plan are stored in the baseline. This blog post explores these situations and gives some tips to avoid them. It also shows how such non-reproducible baselines can be made reproducible with the use of SQL Patch.&lt;/p&gt;
+
+&lt;h1 id=&quot;demo&quot;&gt;Demo&lt;/h1&gt;
+&lt;p&gt;Let’s create a simple table with an index&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;create&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;numbers&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;num&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;number&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;create&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;num&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;numbers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;num&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;insert&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;into&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;numbers&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;values&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;commit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;We issue a simple query with some bind variables…&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fromNum&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;number&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;toNum&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;number&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;exec&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fromNum&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;9&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;toNum&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;11&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;numbers&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;where&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;num&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;between&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fromNum&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;toNum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+       &lt;span class=&quot;n&quot;&gt;NUM&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;----------&lt;/span&gt;
+        &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;… and display its execution plan&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dbms_xplan&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;display_cursor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;());&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;SQL_ID  3gurcdja09xfm, child number 0
+-------------------------------------
+select * from numbers where num between :fromNum and :toNum
+
+Plan hash value: 3276288629
+
+--------------------------------------------------------------------------
+| Id  | Operation         | Name | Rows  | Bytes | Cost (%CPU)| Time     |
+--------------------------------------------------------------------------
+|   0 | SELECT STATEMENT  |      |       |       |     1 (100)|          |
+|*  1 |  FILTER           |      |       |       |            |          |
+|*  2 |   INDEX RANGE SCAN| NUM  |     1 |     3 |     1   (0)| 00:00:01 |
+--------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - filter(:TONUM&amp;gt;=:FROMNUM)
+   2 - access(&amp;quot;NUM&amp;quot;&amp;gt;=:FROMNUM AND &amp;quot;NUM&amp;quot;&amp;lt;=:TONUM)&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Especially note the &lt;code&gt;FILTER&lt;/code&gt; operation on plan line id 1. We create a baseline for this statement.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;baselineCount&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;number&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;exec&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;baselineCount&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dbms_spm&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;load_plans_from_cursor_cache&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+                                 &lt;span class=&quot;n&quot;&gt;sql_id&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;3gurcdja09xfm&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                                 &lt;span class=&quot;n&quot;&gt;fixed&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;YES&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;PL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;/&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;procedure&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;successfully&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;completed&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;baselineCount&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;BASELINECOUNT&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;-------------&lt;/span&gt;
+            &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;When we execute the query again, we see a note at the end of the execution plan telling us that the created baseline was used.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;SQL_ID  3gurcdja09xfm, child number 0
+-------------------------------------
+select * from numbers where num between :fromNum and :toNum
+
+Plan hash value: 3276288629
+
+--------------------------------------------------------------------------
+| Id  | Operation         | Name | Rows  | Bytes | Cost (%CPU)| Time     |
+--------------------------------------------------------------------------
+|   0 | SELECT STATEMENT  |      |       |       |     1 (100)|          |
+|*  1 |  FILTER           |      |       |       |            |          |
+|*  2 |   INDEX RANGE SCAN| NUM  |     1 |     3 |     1   (0)| 00:00:01 |
+--------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - filter(:TONUM&amp;gt;=:FROMNUM)
+   2 - access(&amp;quot;NUM&amp;quot;&amp;gt;=:FROMNUM AND &amp;quot;NUM&amp;quot;&amp;lt;=:TONUM)
+
+Note
+-----
+   - SQL plan baseline SQL_PLAN_4vaynk3kdp6xm5792f51e used for this statement&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Now let’s change an optimizer parameter and re-execute the query. We also trace the &lt;code&gt;SQL_Compiler&lt;/code&gt; component to get more information about what’s happening behind the scenes:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;alter&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;session&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;&amp;quot;_optimizer_generate_transitive_pred&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;Session&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;altered&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;alter&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;session&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;events&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;trace [SQL_Compiler.*]&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;Session&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;altered&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;numbers&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;where&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;num&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;between&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fromNum&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;toNum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+       &lt;span class=&quot;n&quot;&gt;NUM&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;----------&lt;/span&gt;
+        &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dbms_xplan&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;display_cursor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;());&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;SQL_ID  3gurcdja09xfm, child number 1
+-------------------------------------
+select * from numbers where num between :fromNum and :toNum
+
+Plan hash value: 2824003243
+
+-------------------------------------------------------------------------
+| Id  | Operation        | Name | Rows  | Bytes | Cost (%CPU)| Time     |
+-------------------------------------------------------------------------
+|   0 | SELECT STATEMENT |      |       |       |     1 (100)|          |
+|*  1 |  INDEX RANGE SCAN| NUM  |     1 |     3 |     1   (0)| 00:00:01 |
+-------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - access(&amp;quot;NUM&amp;quot;&amp;gt;=:FROMNUM AND &amp;quot;NUM&amp;quot;&amp;lt;=:TONUM)
+
+Note
+-----
+   - Failed to use SQL plan baseline for this statement
+
+
+22 rows selected.
+
+Elapsed: 00:00:00.14&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;In the trace file the following lines are written:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;------- START SPM Plan Dump -------
+SPM: failed to reproduce the plan using the following info:
+  parse_schema name        : THOMAS
+  plan_baseline signature  : 5596800680717884339
+  plan_baseline plan_id    : 1469248798
+  plan_baseline hintset    :
+    hint num  1 len 27 text: IGNORE_OPTIM_EMBEDDED_HINTS
+    hint num  2 len 35 text: OPTIMIZER_FEATURES_ENABLE(&amp;#39;18.1.0&amp;#39;)
+    hint num  3 len 20 text: DB_VERSION(&amp;#39;18.1.0&amp;#39;)
+    hint num  4 len  8 text: ALL_ROWS
+    hint num  5 len 22 text: OUTLINE_LEAF(@&amp;quot;SEL$1&amp;quot;)
+    hint num  6 len 51 text: INDEX(@&amp;quot;SEL$1&amp;quot; &amp;quot;NUMBERS&amp;quot;@&amp;quot;SEL$1&amp;quot; (&amp;quot;NUMBERS&amp;quot;.&amp;quot;NUM&amp;quot;))
+SPM: generated non-matching plan:
+----- Explain Plan Dump -----
+----- Plan Table -----
+
+============
+Plan Table
+============
+------------------------------------+-----------------------------------+
+| Id  | Operation         | Name    | Rows  | Bytes | Cost  | Time      |
+------------------------------------+-----------------------------------+
+| 0   | SELECT STATEMENT  |         |       |       |     1 |           |
+| 1   |  INDEX RANGE SCAN | NUM     |     1 |     3 |     1 |  00:00:01 |
+------------------------------------+-----------------------------------+&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The generated plan with help from the hints from the baseline produced a slightly different plan (no &lt;code&gt;FILTER&lt;/code&gt; operation anymore).
+This shows that the hints stored in this particular baseline are not sufficient to generate the exact same execution plan.&lt;/p&gt;
+
+&lt;p&gt;Instead, Oracle will now use the generated plan with the lowest cost. In this example the used plan is not much worse than the one stored in the baseline, but the key point is that the baseline was not used. In real scenarios this could mean that a possibly much worse plan is used.&lt;/p&gt;
+
+&lt;h1 id=&quot;types-of-hints-not-stored-in-sql-plan-baselines&quot;&gt;Types of hints not stored in SQL Plan Baselines&lt;/h1&gt;
+&lt;p&gt;From my observations the following types of hints are not stored in SQL Plan Baselines:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Optimizer parameters (&lt;code&gt;opt_param(...)&lt;/code&gt;)&lt;/li&gt;
+  &lt;li&gt;Parallel hints (e.g. &lt;code&gt;PARALLEL&lt;/code&gt; or &lt;code&gt;NO_PARALLEL&lt;/code&gt;) when influenced by session level settings, by executing &lt;code&gt;alter session force parallel query&lt;/code&gt; for example.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;So, if the optimizer environment of the session executing the statement differs from the environment where the execution plan of the baseline was generated, there’s a potential for non-reproducible plans. This is only true if there is no regular hint leading to the same execution plan. If, for example, an execution plan is doing an index join, the SQL Plan Baseline would store the hint &lt;code&gt;INDEX_JOIN&lt;/code&gt;. Disabling index joins on session level (&lt;code&gt;alter session set &quot;_index_join_enabled&quot; = false&lt;/code&gt;) has therefore no impact on the reproducibility of the baseline.&lt;/p&gt;
+
+&lt;p&gt;When loading an execution plan into a SQL Plan baseline always keep in mind what optimizer environment was used to generate the plan and what optimizer environment is used by the session supposed to benefit from the SQL Plan Baseline.&lt;/p&gt;
+
+&lt;h1 id=&quot;add-the-missing-hints-to-the-sql-statement&quot;&gt;Add the missing hints to the SQL statement&lt;/h1&gt;
+&lt;p&gt;After we found out that our plan could not have been reproduced with the set of stored hints, the trace output can give us some valuable information about the sessions optimizer environment:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;***************************************
+PARAMETERS USED BY THE OPTIMIZER
+********************************
+  *************************************
+  PARAMETERS WITH ALTERED VALUES
+  ******************************
+Compilation Environment Dump
+_optimizer_generate_transitive_pred = false
+Bug Fix Control Environment
+
+
+  *************************************
+  PARAMETERS WITH DEFAULT VALUES
+  ******************************
+...&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;em&gt;Note that in our scenario we used the default optimizer environment to generate an execution plan to be used in the SQL Plan Baseline and an altered optimizer environment to show that the baseline is not used. It could also be the other way around, whereas we would not find any information about altered parameters in the trace file.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;There are 2 ways to add the necessary hint to our statement:&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;Packing the SQL Plan Baseline into a staging table (&lt;code&gt;DBMS_SPM.PACK_STGTAB_BASELINE&lt;/code&gt;), modify the hints stored in the &lt;code&gt;OTHER_XML&lt;/code&gt; column and unpack it again.&lt;/li&gt;
+  &lt;li&gt;Create a SQL Patch.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;The second approach is probably more supported, so we demonstrate that one. We just add the hint &lt;code&gt;opt_param('_optimizer_generate_transitive_pred' 'true')&lt;/code&gt;&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;patchName&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;varchar2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;128&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;exec&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;patchName&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dbms_sqldiag&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;create_sql_patch&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;sql_id&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;3gurcdja09xfm&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;hint_text&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;opt_param(&amp;#39;&amp;#39;_optimizer_generate_transitive_pred&amp;#39;&amp;#39; &amp;#39;&amp;#39;true&amp;#39;&amp;#39;)&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;PL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;/&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;procedure&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;successfully&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;completed&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;patchName&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;PATCHNAME&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;----------------------------&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;SYS_SQLPTCH_0168234fa3400005&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Now let’s execute the query again:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;numbers&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;where&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;num&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;between&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fromNum&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;toNum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+       &lt;span class=&quot;n&quot;&gt;NUM&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;----------&lt;/span&gt;
+        &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;SQL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dbms_xplan&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;display_cursor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;());&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;SQL_ID  3gurcdja09xfm, child number 0
+-------------------------------------
+select * from numbers where num between :fromNum and :toNum
+
+Plan hash value: 3276288629
+
+--------------------------------------------------------------------------
+| Id  | Operation         | Name | Rows  | Bytes | Cost (%CPU)| Time     |
+--------------------------------------------------------------------------
+|   0 | SELECT STATEMENT  |      |       |       |     1 (100)|          |
+|*  1 |  FILTER           |      |       |       |            |          |
+|*  2 |   INDEX RANGE SCAN| NUM  |     1 |     3 |     1   (0)| 00:00:01 |
+--------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - filter(:TONUM&amp;gt;=:FROMNUM)
+   2 - access(&amp;quot;NUM&amp;quot;&amp;gt;=:FROMNUM AND &amp;quot;NUM&amp;quot;&amp;lt;=:TONUM)
+
+Note
+-----
+   - SQL patch &amp;quot;SYS_SQLPTCH_0168234fa3400005&amp;quot; used for this statement
+   - SQL plan baseline SQL_PLAN_4vaynk3kdp6xm5792f51e used for this statement
+
+
+25 rows selected.
+
+Elapsed: 00:00:00.09&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;We see, that the created patch and the baseline are now used again.&lt;/p&gt;
+
+&lt;h1 id=&quot;final-thoughts&quot;&gt;Final thoughts&lt;/h1&gt;
+&lt;p&gt;I’m two-minded about the fact, that not all necessary hints are stored in the SQL Plan Baseline.&lt;/p&gt;
+
+&lt;p&gt;In case of the parallel hints it would have been easy for Oracle to add them to the baseline when necessary, but it was probably decided to intentionally not do that. If you force parallelism on the session for example, you probably don’t want to use a baseline with a serial plan.&lt;/p&gt;
+
+&lt;p&gt;Regarding the optimizer parameters I think a changed parameter should not be a reason for a baseline not being used.&lt;/p&gt;</content><author><name>Thomas Aregger</name></author><summary type="html">It should be clear that a SQL Plan Baseline becomes non-reproducible if you change the underlying objects in a way that prevents the optimizer from using the given execution plan (e.g. by dropping an index used in the execution plan). In such a situation the plan baseline will be marked as non-reproducible.</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://blog.aregger.io/public/twitter_default_card.png" /><media:content medium="image" url="https://blog.aregger.io/public/twitter_default_card.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">JDBC LOB Prefetching</title><link href="https://blog.aregger.io/jdbc-lob-prefetching/" rel="alternate" type="text/html" title="JDBC LOB Prefetching" /><published>2018-12-20T00:00:00+01:00</published><updated>2018-12-20T00:00:00+01:00</updated><id>https://blog.aregger.io/jdbc-lob-prefetching</id><content type="html" xml:base="https://blog.aregger.io/jdbc-lob-prefetching/">&lt;p&gt;In Oracle JDBC version 11.2 LOB prefetching was introduced. The whole point of LOB prefetching is to reduce the number of roundtrips needed to get the LOB data.&lt;/p&gt;
+
+&lt;p&gt;The goal of this post is to show how LOB prefetching works and point out which variables influence the optimal prefetch value.&lt;/p&gt;
+
+&lt;h2 id=&quot;basics-of-lob-access&quot;&gt;Basics of LOB access&lt;/h2&gt;
+&lt;p&gt;With JDBC driver versions older than 11.2 the behaviour when fetching LOB data is as follows: The client fetches the amount of rows, depending on the set fetch size. If the rows include a LOB column, the client is provided with a LOB locator, which is basically a pointer to the LOB in the database. There is no actual LOB data sent to the client at this point. At the point where the LOB is accessed, e.g. by calling &lt;code&gt;ResultSet.getClob&lt;/code&gt;, the client requests the LOB metadata from the database (like LOB length and chunk size). Then in a second step, the LOB data is requested from the database.&lt;/p&gt;
+
+&lt;p&gt;So, for every row 2 additional roundtrips are necessary to get the LOB data.&lt;/p&gt;
+
+&lt;p&gt;Since JDBC version 11.2 LOB prefetching is available, which can minimize the number of roundtrips. It can be set on the &lt;code&gt;DataSource&lt;/code&gt;, &lt;code&gt;Connection&lt;/code&gt;, &lt;code&gt;Statement&lt;/code&gt; or even on column level by using one of the overloaded methods &lt;code&gt;OracleStatement.defineColumnType&lt;/code&gt;. Check the &lt;a href=&quot;https://docs.oracle.com/en/database/oracle/oracle-database/12.2/jjdbc/performance-extensions.html#GUID-5E60A90D-3924-4228-948D-4A9219201D18&quot;&gt;documentation&lt;/a&gt; for more information.&lt;/p&gt;
+
+&lt;h2 id=&quot;lob-prefetching&quot;&gt;LOB Prefetching&lt;/h2&gt;
+&lt;p&gt;In JDBC version 11.2 the default value for LOB prefetching is &lt;code&gt;-1&lt;/code&gt; which disables LOB prefetching. Since 12.1 the default is &lt;code&gt;4000&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;metadata-only&quot;&gt;Metadata only&lt;/h3&gt;
+&lt;p&gt;By setting LOB prefetching to &lt;code&gt;0&lt;/code&gt;, you enable metadata prefetching. For every LOB column, the metadata is already fetched with the rest of the row data. This avoids one extra roundtrip for each row when accessing the LOB, as described earlier.&lt;/p&gt;
+
+&lt;h3 id=&quot;lob-prefetching-1&quot;&gt;LOB prefetching&lt;/h3&gt;
+&lt;p&gt;Any value higher than &lt;code&gt;0&lt;/code&gt;, sets the amount of LOB data to be prefetched for each LOB. For CLOB data it defines how many characters, for BLOB data how many bytes that are prefetched. So for each LOB smaller than the set prefetch size, no additional round trip to the database is necessary.&lt;/p&gt;
+
+&lt;h2 id=&quot;performance&quot;&gt;Performance&lt;/h2&gt;
+&lt;p&gt;As already mentioned, the whole point of LOB prefetching is to reduce the number of round trips to the database to get the LOB data. To measure the runtime of a simple query in different scenarios, I created a small benchmark where I always fetch the same data, but the following parameters are varying:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Fetch size&lt;/li&gt;
+  &lt;li&gt;LOB prefetch size&lt;/li&gt;
+  &lt;li&gt;Network latency&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;benchmark&quot;&gt;Benchmark&lt;/h3&gt;
+&lt;p&gt;All tests are done with Oracle JDBC 18.3 and Oracle Database 18.3. I’m not aware of any changes to how LOB prefetch work since version 11.2, but memory management has changed in the 12c driver, so it’s probably worth to execute the benchmark on your own if you use driver version 11.2.&lt;/p&gt;
+
+&lt;p&gt;First, we create a table with some LOB data&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;create&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lobtest&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;id&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;number&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;data&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;clob&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;insert&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;into&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lobtest&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rownum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lpad&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;*&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;*&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dual&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;connect&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;by&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rownum&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;commit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The benchmark itself is done with JMH. The test class can be seen &lt;a href=&quot;https://gist.github.com/TAregger/15faf1f539b10729c60906bb687470c6&quot;&gt;here&lt;/a&gt;, but here’s a wrap-up what’s going on there.&lt;/p&gt;
+
+&lt;p&gt;For all combinations of benchmark parameters, the following steps are performed:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Fetch 1000 rows in total.&lt;/li&gt;
+  &lt;li&gt;For every row, access all the data stored in the LOB column.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The parameters are as follows:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;LOB size: 4000 bytes.&lt;/li&gt;
+  &lt;li&gt;Total rows: 1000.&lt;/li&gt;
+  &lt;li&gt;Fetch size: 10, 100, 1000.&lt;/li&gt;
+  &lt;li&gt;LOB Prefetch: -1 (disabled), 0 (metadata), 2000 (half of the LOB), 4000 (whole LOB).&lt;/li&gt;
+  &lt;li&gt;Network latency: ~0.5ms, ~1.5ms. &lt;em&gt;See &lt;a href=&quot;https://blog.aregger.io/simulating-network-latency-linux/&quot;&gt;this&lt;/a&gt; blog post on how to simulate network latency on Linux.&lt;/em&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;results&quot;&gt;Results&lt;/h3&gt;
+&lt;h4 id=&quot;roundtrips&quot;&gt;Roundtrips&lt;/h4&gt;
+&lt;p&gt;Let’s first have a look at the number of roundtrips needed. The chart simply shows how many times the database waited for &lt;code&gt;SQL*Net message from client&lt;/code&gt;.
+&lt;img src=&quot;/assets/2018-12-20-jdbc-lob-prefetching/roundtrips.png&quot; alt=&quot;Benchmark Roundtrips&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;We see that&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;The number of roundtrips is cut in half by using metadata prefetching.&lt;/li&gt;
+  &lt;li&gt;Prefetching just part of the LOB data, results in the same number of roundtrips as when we just prefetch the metadata. This is because in this benchmark the rest of the LOB is always fetched later on.&lt;/li&gt;
+  &lt;li&gt;By prefetching all the LOB data, the number of roundtrips is greatly reduced and mainly driven by the row fetch size.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;runtime&quot;&gt;Runtime&lt;/h4&gt;
+&lt;p&gt;We saw the impact the different scenarios have on the number of roundtrips. The following chart shows the average runtime out of 10 runs for the various scenarios.
+The benchmark was performed with 2 different average network latencies (~0.5ms and ~1.5ms).&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/2018-12-20-jdbc-lob-prefetching/runtime_4k.png&quot; alt=&quot;Benchmark Runtime&quot; /&gt;
+&lt;em&gt;Note that the runtime was obfuscated and does not correspond to a real unit of time. The lowest runtime is set to 1, and the others are aligned accordingly.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;We see that&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;The higher the latency, the bigger the impact of reducing the roundtrips by prefetching the LOBs.&lt;/li&gt;
+  &lt;li&gt;Prefetching only a part of the LOB, and access the rest later is slower than only prefetching the LOB metadata. I tested it also by fetching BLOB instead of CLOB data and access it with &lt;code&gt;ResultSet.getBytes&lt;/code&gt;. I suspect that’s because of some implementation detail in the JDBC driver and something that could change in the future.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;benchmark-with-10mb-lobs&quot;&gt;Benchmark with 10MB LOBs&lt;/h3&gt;
+&lt;p&gt;To get a feeling for what impact the size of the LOB has, I did a second benchmark with the following parameters:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;LOB size: 10 MB.&lt;/li&gt;
+  &lt;li&gt;Total Rows: 100.&lt;/li&gt;
+  &lt;li&gt;Fetch size: 10, 100.&lt;/li&gt;
+  &lt;li&gt;LOB Prefetch: -1 (disabled), 0 (metadata), 8000 (part of the LOB), 10485760 (whole LOB).&lt;/li&gt;
+  &lt;li&gt;Network latency: ~0.5ms.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Here’s the result:
+&lt;img src=&quot;/assets/2018-12-20-jdbc-lob-prefetching/runtime_10m.png&quot; alt=&quot;Benchmark Runtime&quot; /&gt;
+&lt;em&gt;Note that the runtime was obfuscated and does not correspond to a real unit of time.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;We see that&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Metadata prefetching or prefetching just part of the LOB data, does not show any runtime improvements in this case.&lt;/li&gt;
+  &lt;li&gt;Even though the improvement of fetching the whole LOB is not as big as with 4K LOB size, it’s still ~65% faster.&lt;/li&gt;
+  &lt;li&gt;Bigger LOBs (and same network latency) will further diminish the relative performance improvement.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;memory-consumption&quot;&gt;Memory Consumption&lt;/h2&gt;
+&lt;p&gt;I didn’t do any measurements on client-side memory consumption but you should be aware that row fetch size and lob prefetch size affect memory consumption.
+If you for example, set LOB prefetch size to &lt;code&gt;4000&lt;/code&gt; and row fetch size to &lt;code&gt;1000&lt;/code&gt;, the driver needs at least 10 times more memory than setting the fetch size to &lt;code&gt;100&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;With high network latency and small LOBs, the benefit of LOB prefetching will be most noticeable.&lt;/li&gt;
+  &lt;li&gt;The larger the LOBs get or the lower the network latency is, the less overall time is spent for the roundtrips and the benefit will be less significant.&lt;/li&gt;
+  &lt;li&gt;Setting the optimal value for LOB prefetching depends on your LOB size (or to be more precise, the amount of LOB data that is accessed), the fraction of LOBs that are really accessed (e.g. only every 10th LOB in your result set is accessed), network latency, and last but not least on your memory constraints.&lt;/li&gt;
+  &lt;li&gt;As many factors come into play when setting the optimal value, you have to test it under real conditions in your environment.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://docs.oracle.com/en/database/oracle/oracle-database/12.2/jjdbc/performance-extensions.html#GUID-5E60A90D-3924-4228-948D-4A9219201D18&quot;&gt;Oracle JDBC Guide about LOB prefetching&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://gist.github.com/TAregger/15faf1f539b10729c60906bb687470c6&quot;&gt;Benchmark code&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><author><name>Thomas Aregger</name></author><summary type="html">In Oracle JDBC version 11.2 LOB prefetching was introduced. The whole point of LOB prefetching is to reduce the number of roundtrips needed to get the LOB data.</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://blog.aregger.io/assets/2018-12-20-jdbc-lob-prefetching/runtime_4k.png" /><media:content medium="image" url="https://blog.aregger.io/assets/2018-12-20-jdbc-lob-prefetching/runtime_4k.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Simulating network latency on Linux</title><link href="https://blog.aregger.io/simulating-network-latency-linux/" rel="alternate" type="text/html" title="Simulating network latency on Linux" /><published>2018-12-16T00:00:00+01:00</published><updated>2018-12-16T00:00:00+01:00</updated><id>https://blog.aregger.io/simulating-network-latency-linux</id><content type="html" xml:base="https://blog.aregger.io/simulating-network-latency-linux/">&lt;p&gt;If you want to run test cases that are sensitive to network latency, it’s important to also test them under the effect of different latencies.
+For example you want to know what it means if you move an application currently running on the same server as the database to a different server. Or you are doing some small tests locally on your computer and want to know how they would behave in a real environment where client and server are on different machines, maybe even with long geographical distances between them.&lt;/p&gt;
+
+&lt;p&gt;I usually use the method described here when I want to run some tests on my laptop where I have an Oracle Database running in a Virtualbox VM.&lt;/p&gt;
+
+&lt;p&gt;Linux provides a kernel module called NetEm (Network Emulator). With NetEm you can add a delay to all packages leaving (outgoing) a certain network interface. You can do a lot more things with NetEm like duplicating, corrupting or reordering packages and more. Check the man page or the links at the end of this post to find out more about it.&lt;/p&gt;
+
+&lt;p&gt;NetEm is an enhancement of the Linux traffic control facilities and can therefore be controlled with &lt;code&gt;tc&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;using-the-tc-command-line-tool-to-add-a-delay&quot;&gt;Using the tc command line tool to add a delay&lt;/h2&gt;
+
+&lt;p&gt;Add a delay of 10ms to eth1&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;tc qdisc add dev eth1 root netem delay 10ms
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Change an already configured delay&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;tc qdisc change dev eth1 root netem delay 5ms
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Show configuration of eth1&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;tc qdisc show dev eth1
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Remove a configured delay&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;tc qdisc del dev eth1 root netem delay 4ms
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;example&quot;&gt;Example&lt;/h2&gt;
+&lt;p&gt;I’m just going to ping my virtual machine and add a delay after a couple of pings.&lt;/p&gt;
+
+&lt;p&gt;Ping my virtual machine from my local machine&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;ping oracle-database-183
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Add delay of 10ms on eth1 on my virtual machine. This means the packages leaving eth1 (in this examples the answers to the ping) will be delayed by 10ms.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;tc qdisc add dev eth1 root netem delay 10ms
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Output of ping&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;PING oracle-database-183 (192.168.56.202): 56 data bytes
+64 bytes from 192.168.56.202: icmp_seq=0 ttl=64 time=0.255 ms
+64 bytes from 192.168.56.202: icmp_seq=1 ttl=64 time=0.376 ms
+64 bytes from 192.168.56.202: icmp_seq=2 ttl=64 time=0.329 ms
+64 bytes from 192.168.56.202: icmp_seq=3 ttl=64 time=0.336 ms
+64 bytes from 192.168.56.202: icmp_seq=4 ttl=64 time=0.310 ms
+64 bytes from 192.168.56.202: icmp_seq=5 ttl=64 time=10.870 ms
+64 bytes from 192.168.56.202: icmp_seq=6 ttl=64 time=10.992 ms
+64 bytes from 192.168.56.202: icmp_seq=7 ttl=64 time=10.910 ms
+64 bytes from 192.168.56.202: icmp_seq=8 ttl=64 time=10.900 ms
+64 bytes from 192.168.56.202: icmp_seq=9 ttl=64 time=10.790 ms
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The output of ping clearly shows the effect of adding the delay with tc.&lt;/p&gt;
+
+&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://community.oracle.com/docs/DOC-1007578&quot;&gt;Oracle Community article&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://wiki.linuxfoundation.org/networking/netem&quot;&gt;Linux Foundation Wiki&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://man7.org/linux/man-pages/man8/tc-netem.8.html&quot;&gt;man page&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><author><name>Thomas Aregger</name></author><summary type="html">If you want to run test cases that are sensitive to network latency, it’s important to also test them under the effect of different latencies. For example you want to know what it means if you move an application currently running on the same server as the database to a different server. Or you are doing some small tests locally on your computer and want to know how they would behave in a real environment where client and server are on different machines, maybe even with long geographical distances between them.</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://blog.aregger.io/assets/2018-12-16-simulating-network-latency-linux/thumbnail.png" /><media:content medium="image" url="https://blog.aregger.io/assets/2018-12-16-simulating-network-latency-linux/thumbnail.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Hide SQL statement text from DBMS_XPLAN output</title><link href="https://blog.aregger.io/hide-sql-text-from-dbms_xplan-output/" rel="alternate" type="text/html" title="Hide SQL statement text from DBMS_XPLAN output" /><published>2018-04-22T13:09:23+02:00</published><updated>2018-04-22T13:09:23+02:00</updated><id>https://blog.aregger.io/hide-sql-text-from-dbms_xplan-output</id><content type="html" xml:base="https://blog.aregger.io/hide-sql-text-from-dbms_xplan-output/">&lt;p&gt;The &lt;a href=&quot;https://docs.oracle.com/database/121/ARPLS/d_xplan.htm#ARPLS70130&quot;&gt;dbms_xplan.display*&lt;/a&gt; functions have a lot of options to format the execution plan output via the format parameter. What often annoys me is the output of the SQL statement text. If, for example, you want to display all execution plans of a cursor with many child cursors and large SQL statement texts, the SQL text is returned for each child cursor and clutters your screen. Unfortunately there is no way to turn off this output with a format parameter.&lt;/p&gt;
+
+&lt;p&gt;Luckily we can just filter the rows returned by &lt;code&gt;dbms_xplan.display*&lt;/code&gt; functions with a custom query. This blog post show you how. If you are just interested in how the final query looks like, click &lt;a href=&quot;#final-query&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;build-the-query&quot;&gt;Build the query&lt;/h2&gt;
+
+&lt;p&gt;First, let’s have a look at a sample output of &lt;code&gt;dbms_xplan.display_cursor&lt;/code&gt; for a cursor with 2 child cursors.&lt;/p&gt;
+
+&lt;h4 id=&quot;query&quot;&gt;Query&lt;/h4&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;dbms_xplan&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;display_cursor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;amp;sqlId&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;TYPICAL&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h4 id=&quot;output&quot;&gt;Output&lt;/h4&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;PLAN_TABLE_OUTPUT
+------------------------------------------------------------------------
+&lt;span class=&quot;hll&quot;&gt;SQL_ID  934ur8r7tqbjx, child number 0
+&lt;/span&gt;-------------------------------------
+SELECT DBID FROM V$DATABASE
+
+Plan hash value: 735420252
+
+----------------------------------------------------------------------
+&lt;span class=&quot;hll&quot;&gt;| Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+&lt;/span&gt;----------------------------------------------------------------------
+|   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+|   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+|*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+|   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+|   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+----------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - filter(&amp;quot;DI&amp;quot;.&amp;quot;INST_ID&amp;quot;=USERENV(&amp;#39;INSTANCE&amp;#39;))
+
+&lt;span class=&quot;hll&quot;&gt;SQL_ID  934ur8r7tqbjx, child number 1
+&lt;/span&gt;-------------------------------------
+SELECT DBID FROM V$DATABASE
+
+Plan hash value: 735420252
+
+----------------------------------------------------------------------
+&lt;span class=&quot;hll&quot;&gt;| Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+&lt;/span&gt;----------------------------------------------------------------------
+|   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+|   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+|*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+|   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+|   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+----------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - filter(&amp;quot;DI&amp;quot;.&amp;quot;INST_ID&amp;quot;=USERENV(&amp;#39;INSTANCE&amp;#39;))&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The highlighted lines in the output above should always occur in the output, no matter what format options are defined. They are also very easy to identify with a simple regex, so the idea is to filter out everything in between them, with some exceptions (like the Plan hash value line or the header of the execution plan table).&lt;/p&gt;
+
+&lt;p&gt;A couple of ways to do that come to my mind:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Create a PL/SQL function which accepts the output of the &lt;code&gt;DBMS_XPLAN.DISPLAY_CURSOR&lt;/code&gt; function and process it procedurally row by row. I don’t want to create any objects in the database, but in 12c you could define the function in the &lt;code&gt;WITH&lt;/code&gt; clause. As I want a solution also working on older Oracle version I don’t follow this approach.&lt;/li&gt;
+  &lt;li&gt;The pattern matching functionality in 12c is very powerful and could to this job, but again, I don’t want to depend on 12c.&lt;/li&gt;
+  &lt;li&gt;There must be a way to do this with analytic functions. They are available since Oracle 8i, so I’m able to use this solution on all environments I need.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;first-step-use-last_value-analytic-function&quot;&gt;First step: Use last_value analytic function&lt;/h3&gt;
+
+&lt;p&gt;The idea is to add an additional column to the plan output which has the value 1 if the row should be display or 0 if it shouldn’t be displayed.&lt;/p&gt;
+
+&lt;p&gt;I use the &lt;code&gt;CASE&lt;/code&gt; expression as a first step to mark a row to either be shown or not. In combination with the &lt;a href=&quot;https://docs.oracle.com/database/121/SQLRF/functions097.htm#SQLRF00655&quot;&gt;LAST_VALUE&lt;/a&gt; analytic function we can mark all subsequent rows the same way.&lt;/p&gt;
+
+&lt;h4 id=&quot;query-1&quot;&gt;Query&lt;/h4&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;show&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;last_value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;like&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;| Id%&amp;#39;&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;regexp_like&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                       &lt;span class=&quot;s1&quot;&gt;&amp;#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; 
+      &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;null&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;ignore&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nulls&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;over&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;order&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;by&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rownum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;show&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dbms_xplan&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;display_cursor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;amp;sqlId&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;TYPICAL&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;/&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Check the output below first, to see what’s returned.&lt;/p&gt;
+
+&lt;p&gt;The use of &lt;code&gt;NULL&lt;/code&gt; and the &lt;code&gt;IGNORE NULLS&lt;/code&gt; clause in the &lt;code&gt;LAST_VALUE&lt;/code&gt; function is important. This way, for every &lt;code&gt;NULL&lt;/code&gt; returned by the &lt;code&gt;CASE&lt;/code&gt; expression, the &lt;code&gt;LAST_VALUE&lt;/code&gt; function ignores them and uses the last non-null value, which is either 1 or 0.&lt;/p&gt;
+
+&lt;p&gt;Note that the regex also searches for &lt;code&gt;HASH_VALUE&lt;/code&gt; and &lt;code&gt;EXPLAINED SQL STATEMENT&lt;/code&gt;. This is because, depending on the detail level chosen in the format parameter of the &lt;code&gt;DBMS_XPLAN&lt;/code&gt; function, the output looks a little bit different.&lt;/p&gt;
+
+&lt;h4 id=&quot;output-1&quot;&gt;Output&lt;/h4&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;SHOW PLAN_TABLE_OUTPUT
+---- ----------------------------------------------------------------------
+&lt;span class=&quot;hll&quot;&gt;   0 SQL_ID  934ur8r7tqbjx, child number 0
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;   0 -------------------------------------
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;   0 SELECT DBID FROM V$DATABASE
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;   0
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;   0 Plan hash value: 735420252
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;   0
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;   0 ----------------------------------------------------------------------
+&lt;/span&gt;   1 | Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+   1 ----------------------------------------------------------------------
+   1 |   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+   1 |   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+   1 |*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+   1 |   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+   1 |   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+   1 ----------------------------------------------------------------------
+   1
+   1 Predicate Information (identified by operation id):
+   1 ---------------------------------------------------
+   1
+   1    2 - filter(&amp;quot;DI&amp;quot;.&amp;quot;INST_ID&amp;quot;=USERENV(&amp;#39;INSTANCE&amp;#39;))
+   1
+&lt;span class=&quot;hll&quot;&gt;   0 SQL_ID  934ur8r7tqbjx, child number 1
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;   0 -------------------------------------
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;   0 SELECT DBID FROM V$DATABASE
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;   0
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;   0 Plan hash value: 735420252
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;   0
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;   0 ----------------------------------------------------------------------
+&lt;/span&gt;   1 | Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+   1 ----------------------------------------------------------------------
+   1 |   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+   1 |   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+   1 |*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+   1 |   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+   1 |   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+   1 ----------------------------------------------------------------------
+   1
+   1 Predicate Information (identified by operation id):
+   1 ---------------------------------------------------
+   1
+   1    2 - filter(&amp;quot;DI&amp;quot;.&amp;quot;INST_ID&amp;quot;=USERENV(&amp;#39;INSTANCE&amp;#39;))
+   1&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The column &lt;code&gt;SHOW&lt;/code&gt; now correctly contains 0 for the SQL statement section, but we also have some false negatives:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The row showing use the &lt;code&gt;SQL_ID&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;The row after the &lt;code&gt;SQL_ID&lt;/code&gt; which is kind of a separator&lt;/li&gt;
+  &lt;li&gt;The row showing the plan hash value&lt;/li&gt;
+  &lt;li&gt;The first row which is part of the execution plan table header&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;second-step-refine-query&quot;&gt;Second step: Refine query&lt;/h3&gt;
+
+&lt;p&gt;To fix these false negatives, again we use the &lt;code&gt;CASE&lt;/code&gt; expression in combination with some regex.&lt;/p&gt;
+
+&lt;p&gt;The &lt;code&gt;LAG&lt;/code&gt; and &lt;code&gt;LEAD&lt;/code&gt; analytic functions are used to decide what value the column has, depending on the next or previous row.&lt;/p&gt;
+
+&lt;h4 id=&quot;query-2&quot;&gt;Query&lt;/h4&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;show&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt;
+&lt;span class=&quot;hll&quot;&gt;    &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;regexp_like&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; 
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;                    &lt;span class=&quot;s1&quot;&gt;&amp;#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;      &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;    &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;regexp_like&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lag&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;over&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;order&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;by&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rownum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;                    &lt;span class=&quot;s1&quot;&gt;&amp;#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;      &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;    &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lead&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;over&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;order&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;by&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rownum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;like&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;| Id%&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;      &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;    &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;like&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Plan hash value%&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;      &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;last_value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;like&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;| Id%&amp;#39;&lt;/span&gt;
+          &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;regexp_like&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                        &lt;span class=&quot;s1&quot;&gt;&amp;#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+          &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; 
+	&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;null&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;ignore&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nulls&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;over&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;order&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;by&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rownum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;show&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dbms_xplan&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;display_cursor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;amp;sqlId&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;TYPICAL&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;/&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h4 id=&quot;output-2&quot;&gt;Output&lt;/h4&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;SHOW PLAN_TABLE_OUTPUT
+---- ----------------------------------------------------------------------
+   1 SQL_ID  934ur8r7tqbjx, child number 0
+   1 -------------------------------------
+&lt;span class=&quot;hll&quot;&gt;   0 SELECT DBID FROM V$DATABASE
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;   0
+&lt;/span&gt;   1 Plan hash value: 735420252
+&lt;span class=&quot;hll&quot;&gt;   0
+&lt;/span&gt;   1 ----------------------------------------------------------------------
+   1 | Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+   1 ----------------------------------------------------------------------
+   1 |   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+   1 |   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+   1 |*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+   1 |   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+   1 |   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+   1 ----------------------------------------------------------------------
+   1
+   1 Predicate Information (identified by operation id):
+   1 ---------------------------------------------------
+   1
+   1    2 - filter(&amp;quot;DI&amp;quot;.&amp;quot;INST_ID&amp;quot;=USERENV(&amp;#39;INSTANCE&amp;#39;))
+   1
+   1 SQL_ID  934ur8r7tqbjx, child number 1
+   1 -------------------------------------
+&lt;span class=&quot;hll&quot;&gt;   0 SELECT DBID FROM V$DATABASE
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;   0
+&lt;/span&gt;   1 Plan hash value: 735420252
+&lt;span class=&quot;hll&quot;&gt;   0
+&lt;/span&gt;   1 ----------------------------------------------------------------------
+   1 | Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+   1 ----------------------------------------------------------------------
+   1 |   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+   1 |   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+   1 |*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+   1 |   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+   1 |   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+   1 ----------------------------------------------------------------------
+   1
+   1 Predicate Information (identified by operation id):
+   1 ---------------------------------------------------
+   1
+   1    2 - filter(&amp;quot;DI&amp;quot;.&amp;quot;INST_ID&amp;quot;=USERENV(&amp;#39;INSTANCE&amp;#39;))
+   1&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;a id=&quot;final-query&quot;&gt;&lt;/a&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;final-query&quot;&gt;Final query&lt;/h3&gt;
+
+&lt;p&gt;This is exactly what we want. All we have to do now, is to remove the projection of the &lt;code&gt;SHOW&lt;/code&gt; column and filter the rows with &lt;code&gt;SHOW=0&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h4 id=&quot;query-3&quot;&gt;Query&lt;/h4&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;regexp_like&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; 
+                    &lt;span class=&quot;s1&quot;&gt;&amp;#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;regexp_like&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lag&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;over&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;order&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;by&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rownum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+                    &lt;span class=&quot;s1&quot;&gt;&amp;#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lead&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;over&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;order&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;by&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rownum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;like&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;| Id%&amp;#39;&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;like&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Plan hash value%&amp;#39;&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;last_value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;like&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;| Id%&amp;#39;&lt;/span&gt; 
+          &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;when&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;regexp_like&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;plan_table_output&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; 
+                        &lt;span class=&quot;s1&quot;&gt;&amp;#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+          &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; 
+	&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;null&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;ignore&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nulls&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;over&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;order&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;by&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rownum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;show&lt;/span&gt;
+&lt;span class=&quot;hll&quot;&gt;&lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dbms_xplan&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;display_cursor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;amp;sqlId&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;TYPICAL&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;where&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;show&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;/&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h4 id=&quot;output-3&quot;&gt;Output&lt;/h4&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;PLAN_TABLE_OUTPUT
+----------------------------------------------------------------------
+SQL_ID  934ur8r7tqbjx, child number 0
+-------------------------------------
+Plan hash value: 735420252
+----------------------------------------------------------------------
+| Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+----------------------------------------------------------------------
+|   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+|   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+|*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+|   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+|   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+----------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - filter(&amp;quot;DI&amp;quot;.&amp;quot;INST_ID&amp;quot;=USERENV(&amp;#39;INSTANCE&amp;#39;))
+
+SQL_ID  934ur8r7tqbjx, child number 1
+-------------------------------------
+Plan hash value: 735420252
+----------------------------------------------------------------------
+| Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+----------------------------------------------------------------------
+|   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
+|   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
+|*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
+|   3 |   BUFFER SORT        |          |   100 |       |     0   (0)|
+|   4 |    FIXED TABLE FULL  | X$KCCDI2 |   100 |       |     0   (0)|
+----------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - filter(&amp;quot;DI&amp;quot;.&amp;quot;INST_ID&amp;quot;=USERENV(&amp;#39;INSTANCE&amp;#39;))&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The query was tested with various format options and should work equally well under 12c and 11g and probably also on older versions.&lt;/p&gt;
+
+&lt;p&gt;I use a variaton of it in a script where I can control whether the SQL statement text is shown or not with when I invoke it.&lt;/p&gt;</content><author><name>Thomas Aregger</name></author><category term="dbms_xplan" /><category term="execution plan" /><category term="sql text" /><summary type="html">The dbms_xplan.display* functions have a lot of options to format the execution plan output via the format parameter. What often annoys me is the output of the SQL statement text. If, for example, you want to display all execution plans of a cursor with many child cursors and large SQL statement texts, the SQL text is returned for each child cursor and clutters your screen. Unfortunately there is no way to turn off this output with a format parameter.</summary></entry><entry><title type="html">Find functions with pragma RESTRICT_REFERENCES</title><link href="https://blog.aregger.io/find-procedures-pragma-restrict_references/" rel="alternate" type="text/html" title="Find functions with pragma RESTRICT_REFERENCES" /><published>2017-12-18T19:17:14+01:00</published><updated>2017-12-18T19:17:14+01:00</updated><id>https://blog.aregger.io/find-procedures-pragma-restrict_references</id><content type="html" xml:base="https://blog.aregger.io/find-procedures-pragma-restrict_references/">&lt;p&gt;If you want to do parallel DML and use packaged functions in the statement, the functions need to fulfill certain requirements. Otherwise you will get the following note in the plan and PDML is not used:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;- PDML disabled because function is not pure and not declared parallel enabled
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This means your function must be either pure or declared with the &lt;a href=&quot;https://docs.oracle.com/en/database/oracle/oracle-database/12.2/lnpls/PARALLEL_ENABLE-clause.html#GUID-CFF3C7D3-6438-44C2-9FAF-569F246C37CA&quot;&gt;parallel-enable clause&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;The parallel enabled requirement is easy to check, you can find it out by querying &lt;code&gt;DBA_PROCEDURES.PARALLEL&lt;/code&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;pure-functions&quot;&gt;Pure functions&lt;/h1&gt;
+
+&lt;p&gt;The second one is a bit harder, because it is not directly exposed via a database view.&lt;/p&gt;
+
+&lt;p&gt;First we need to know what &lt;em&gt;pure&lt;/em&gt; means in this case. A function is considered as pure if it is defined with the pragma &lt;a href=&quot;https://docs.oracle.com/en/database/oracle/oracle-database/12.2/lnpls/RESTRICT_REFERENCES-pragma.html#GUID-D189A0B4-D0D3-4951-BFC2-7D996F1659FE&quot;&gt;RESTRICT_REFERENCES&lt;/a&gt; and all four constraints &lt;code&gt;RNDS&lt;/code&gt;, &lt;code&gt;WNDS&lt;/code&gt;, &lt;code&gt;RNPS&lt;/code&gt; and &lt;code&gt;WNPS&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;This information is encoded in &lt;code&gt;SYS.PROCEDUREINFO$.PROPERTIES&lt;/code&gt;. The following query can be used to display which constraints of the pragma are used in a function/procedure:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;o&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;OBJECT_NAME&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+       &lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;procedurename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+       &lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bitand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;properties&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8388608&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8388608&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;NO&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;YES&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+         &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pragma_restrict_references&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+       &lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bitand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;properties&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;524288&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;524288&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;NO&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;YES&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rnds&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+       &lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bitand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;properties&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1048576&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1048576&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;NO&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;YES&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;wnds&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+       &lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bitand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;properties&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;131072&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;131072&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;NO&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;YES&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rnps&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+       &lt;span class=&quot;n&quot;&gt;decode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bitand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;properties&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;262144&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;262144&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;NO&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;YES&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;wnps&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;procedureinfo$&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;join&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dba_objects&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;o&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;o&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;OBJECT_ID&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;#&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;So to finally find out if your function can be used in PDML statements, the following query can be used:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;o&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;OBJECT_NAME&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;procedurename&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;procedureinfo$&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;join&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dba_objects&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;o&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;o&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;OBJECT_ID&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;#&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;join&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dba_procedures&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;o&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;OWNER&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;OWNER&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;o&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;OBJECT_NAME&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;OBJECT_NAME&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;procedurename&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PROCEDURE_NAME&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+ &lt;span class=&quot;k&quot;&gt;where&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PARALLEL&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;YES&amp;#39;&lt;/span&gt; 
+   &lt;span class=&quot;k&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bitand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;properties&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8388608&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8388608&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt;
+       &lt;span class=&quot;n&quot;&gt;bitand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;properties&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;524288&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;524288&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt;
+       &lt;span class=&quot;n&quot;&gt;bitand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;properties&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1048576&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1048576&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt;
+       &lt;span class=&quot;n&quot;&gt;bitand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;properties&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;131072&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;131072&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt;
+       &lt;span class=&quot;n&quot;&gt;bitand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;properties&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;262144&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;262144&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+   &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;OBJECT_NAME&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;amp;packageName&amp;#39;&lt;/span&gt;
+   &lt;span class=&quot;k&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PROCEDURE_NAME&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;&amp;amp;procedureName&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h1 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h1&gt;
+
+&lt;p&gt;The above query provides an easy and fast way to determine if a function can be used in PDML statements. This is especially useful if you have a function for which you don’t own the source.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Example:&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;We had a DML statement which was using &lt;code&gt;UTL_I18N.STRING_TO_RAW&lt;/code&gt;. This function is neither parallel enabled nor does it have the required pragma &lt;code&gt;RESTRICT_REFERENCES&lt;/code&gt;. Therefore no PDML was performed.&lt;/p&gt;
+
+&lt;p&gt;We simply changed the statement to use &lt;code&gt;UTL_RAW.CAST_TO_RAW&lt;/code&gt; instead, which has the pragma &lt;code&gt;RESTRICT_REFERENCE&lt;/code&gt; required for PDML.&lt;/p&gt;
+
+&lt;p&gt;Of course these two functions do not provide the exact same functionality, but in our case (destination charset was the same as database charset) we were able to swap them without risk.&lt;/p&gt;</content><author><name>Thomas Aregger</name></author><category term="parallel dml" /><category term="PDML" /><summary type="html">If you want to do parallel DML and use packaged functions in the statement, the functions need to fulfill certain requirements. Otherwise you will get the following note in the plan and PDML is not used: - PDML disabled because function is not pure and not declared parallel enabled</summary></entry></feed>

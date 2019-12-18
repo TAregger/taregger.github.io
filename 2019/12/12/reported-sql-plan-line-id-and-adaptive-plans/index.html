@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+  <head>
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-78018626-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+  
+    gtag('config', 'UA-78018626-1');
+  </script>
+
+  <link href="http://gmpg.org/xfn/11" rel="profile">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+  <!-- Enable responsiveness on mobile devices-->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+  <title>
+    
+      Reported SQL Plan Line ID and Adaptive Plans &middot; blog.aregger.io
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/public/css/poole.css">
+  <link rel="stylesheet" href="/public/css/syntax.css">
+  <link rel="stylesheet" href="/public/css/hyde.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400italic,700|Abril+Fatface">
+
+  <!-- Icons -->
+  <link rel="shortcut icon" href="/public/favicon.ico">
+
+  <!-- RSS -->
+  <link rel="alternate" type="application/rss+xml" title="RSS" href="/atom.xml">
+
+  <!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Reported SQL Plan Line ID and Adaptive Plans | blog.aregger.io</title>
+<meta name="generator" content="Jekyll v3.8.6" />
+<meta property="og:title" content="Reported SQL Plan Line ID and Adaptive Plans" />
+<meta name="author" content="Thomas Aregger" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="If no real time SQL monitor report is available I often sample v$session or do aggregations over v$active_session_history or dba_hist_active_sess_history and group by the column sql_plan_line_id to find out where most of the time is spent." />
+<meta property="og:description" content="If no real time SQL monitor report is available I often sample v$session or do aggregations over v$active_session_history or dba_hist_active_sess_history and group by the column sql_plan_line_id to find out where most of the time is spent." />
+<link rel="canonical" href="https://blog.aregger.io/2019/12/12/reported-sql-plan-line-id-and-adaptive-plans/" />
+<meta property="og:url" content="https://blog.aregger.io/2019/12/12/reported-sql-plan-line-id-and-adaptive-plans/" />
+<meta property="og:site_name" content="blog.aregger.io" />
+<meta property="og:image" content="https://blog.aregger.io/public/twitter_default_card.png" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2019-12-12T00:00:00+01:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:image" content="https://blog.aregger.io/public/twitter_default_card.png" />
+<meta property="twitter:title" content="Reported SQL Plan Line ID and Adaptive Plans" />
+<meta name="twitter:site" content="@taregger" />
+<meta name="twitter:creator" content="@taregger" />
+<script type="application/ld+json">
+{"datePublished":"2019-12-12T00:00:00+01:00","image":"https://blog.aregger.io/public/twitter_default_card.png","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/2019/12/12/reported-sql-plan-line-id-and-adaptive-plans/"},"url":"https://blog.aregger.io/2019/12/12/reported-sql-plan-line-id-and-adaptive-plans/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"If no real time SQL monitor report is available I often sample v$session or do aggregations over v$active_session_history or dba_hist_active_sess_history and group by the column sql_plan_line_id to find out where most of the time is spent.","headline":"Reported SQL Plan Line ID and Adaptive Plans","dateModified":"2019-12-12T00:00:00+01:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+</head>
+
+
+  <body>
+
+    <div class="sidebar">
+  <div class="container sidebar-sticky">
+    <div class="sidebar-about">
+      <h1>
+        <a href="/">
+	  blog. aregger.io
+        </a>
+      </h1>
+      <p class="lead">A blog about Oracle, SQL and Java</p>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="sidebar-nav-item" href="/">Home</a>
+
+      
+
+      
+      
+        
+          
+        
+      
+        
+          
+            <a class="sidebar-nav-item" href="/about/">About</a>
+          
+        
+      
+        
+          
+            <a class="sidebar-nav-item" href="/archive/">Archive</a>
+          
+        
+      
+        
+      
+        
+          
+        
+      
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+      
+        
+      
+
+    </nav>
+
+    <div class="sidebar-nav-social">
+      <a href="https://twitter.com/taregger">
+        <img src="/public/twitter.png" alt="twitter" height="32" width="32">
+      </a>
+    </div>
+
+    <!-- 
+    <p>&copy; 2019. All rights reserved.</p>
+    -->
+  </div>
+</div>
+
+
+    <div class="content container">
+      <div class="post">
+  <h1 class="post-title">Reported SQL Plan Line ID and Adaptive Plans</h1>
+  <span class="post-date">12 Dec 2019</span>
+  <p>If no real time SQL monitor report is available I often sample <code>v$session</code> or do aggregations over <code>v$active_session_history</code> or <code>dba_hist_active_sess_history</code> and group by the column <code>sql_plan_line_id</code> to find out where most of the time is spent.</p>
+
+<p>This blog post shows that you should be aware of whether or not an adaptive plan is used when using this data. So, let’s create a small demo.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">create</span> <span class="k">table</span> <span class="n">t1</span> <span class="p">(</span><span class="n">c1</span> <span class="nb">number</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span> <span class="n">c2</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">4000</span><span class="p">));</span>
+<span class="k">create</span> <span class="k">table</span> <span class="n">t2</span> <span class="p">(</span><span class="n">c1</span> <span class="nb">number</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span> <span class="n">c2</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">4000</span><span class="p">));</span>
+
+<span class="k">create</span> <span class="k">index</span> <span class="n">i1</span> <span class="k">on</span> <span class="n">t1</span><span class="p">(</span><span class="n">c1</span><span class="p">);</span>
+<span class="k">create</span> <span class="k">index</span> <span class="n">i2</span> <span class="k">on</span> <span class="n">t2</span><span class="p">(</span><span class="n">c1</span><span class="p">);</span>
+
+
+<span class="k">insert</span> <span class="k">into</span> <span class="n">t1</span> 
+  <span class="k">select</span> <span class="n">trunc</span><span class="p">(</span><span class="n">dbms_random</span><span class="p">.</span><span class="n">value</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)),</span> <span class="n">lpad</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="mi">4000</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">)</span>
+  <span class="k">from</span> <span class="n">dual</span> <span class="k">connect</span> <span class="k">by</span> <span class="n">rownum</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="n">e5</span><span class="p">;</span>
+
+<span class="k">insert</span> <span class="k">into</span> <span class="n">t2</span> 
+  <span class="k">select</span> <span class="n">trunc</span><span class="p">(</span><span class="n">dbms_random</span><span class="p">.</span><span class="n">value</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">100000</span><span class="p">)),</span> <span class="n">lpad</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="mi">4000</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">)</span>
+  <span class="k">from</span> <span class="n">dual</span> <span class="k">connect</span> <span class="k">by</span> <span class="n">rownum</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="n">e5</span><span class="p">;</span>
+
+<span class="k">commit</span><span class="p">;</span>
+
+<span class="k">exec</span> <span class="n">dbms_stats</span><span class="p">.</span><span class="n">gather_table_stats</span><span class="p">(</span><span class="k">user</span><span class="p">,</span> <span class="s1">&#39;T1&#39;</span><span class="p">);</span>
+<span class="k">exec</span> <span class="n">dbms_stats</span><span class="p">.</span><span class="n">gather_table_stats</span><span class="p">(</span><span class="k">user</span><span class="p">,</span> <span class="s1">&#39;T2&#39;</span><span class="p">);</span></code></pre></figure>
+
+<p>Now let’s display the execution plan of a simple query joining the two tables:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">explain</span> <span class="n">plan</span> <span class="k">for</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">join</span> <span class="n">t2</span> <span class="k">on</span> <span class="p">(</span><span class="n">t1</span><span class="p">.</span><span class="n">c1</span> <span class="o">=</span> <span class="n">t2</span><span class="p">.</span><span class="n">c1</span><span class="p">);</span>
+
+<span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display</span><span class="p">(</span><span class="n">format</span> <span class="o">=&gt;</span><span class="s1">&#39;BASIC +NOTE&#39;</span><span class="p">));</span></code></pre></figure>
+
+<p>This is the plan Oracle came up with:</p>
+
+<pre><code>Plan hash value: 1838229974
+
+-----------------------------------
+| Id  | Operation          | Name |
+-----------------------------------
+|   0 | SELECT STATEMENT   |      |
+|   1 |  HASH JOIN         |      |
+|   2 |   TABLE ACCESS FULL| T1   |
+|   3 |   TABLE ACCESS FULL| T2   |
+-----------------------------------
+
+Note
+-----
+   - this is an adaptive plan
+
+</code></pre>
+
+<p>Now we execute the query:</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">join</span> <span class="n">t2</span> <span class="k">on</span> <span class="p">(</span><span class="n">t1</span><span class="p">.</span><span class="n">c1</span> <span class="o">=</span> <span class="n">t2</span><span class="p">.</span><span class="n">c1</span><span class="p">);</span></code></pre></figure>
+
+<p>The query returns 0 rows as the generated numbers in the join columns are not overlapping. In my case it ran for about 6 seconds. I then used the following query to get a rough idea where in the execution plan Oracle spent most of the time.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span>
+  <span class="n">sql_plan_hash_value</span><span class="p">,</span>
+  <span class="n">sql_plan_line_id</span><span class="p">,</span>
+  <span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span>
+<span class="k">from</span> <span class="n">v$active_session_history</span>
+<span class="k">where</span> <span class="n">session_id</span> <span class="o">=</span> <span class="n">sys_context</span><span class="p">(</span><span class="s1">&#39;userenv&#39;</span><span class="p">,</span><span class="s1">&#39;sid&#39;</span><span class="p">)</span>
+  <span class="k">and</span> <span class="n">sample_time</span> <span class="o">&gt;</span> <span class="n">sysdate</span> <span class="o">-</span> <span class="nb">interval</span> <span class="s1">&#39;10&#39;</span> <span class="k">second</span>
+<span class="k">group</span> <span class="k">by</span> <span class="n">sql_id</span><span class="p">,</span>
+  <span class="n">sql_plan_hash_value</span><span class="p">,</span>
+  <span class="n">sql_plan_line_id</span><span class="p">;</span></code></pre></figure>
+
+<p>Here’s the output:</p>
+
+<pre><code>SQL_PLAN_HASH_VALUE SQL_PLAN_LINE_ID   COUNT(*)
+------------------- ---------------- ----------
+         1838229974                1          4
+         1838229974                8          2
+
+</code></pre>
+
+<p>Oracle reports two samples where it spent time on plan line id 8, but in the execution plan there is no such plan line id. As the plan is an adaptive plan, it’s pretty obvious that this must be the issue here. So we display the plan with the <code>ADAPTIVE</code> formatting option, which also displays skipped operations.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display</span><span class="p">(</span><span class="n">format</span> <span class="o">=&gt;</span><span class="s1">&#39;BASIC +NOTE +ADAPTIVE&#39;</span><span class="p">));</span></code></pre></figure>
+
+<pre><code>Plan hash value: 1838229974
+
+----------------------------------------------
+| Id  | Operation                     | Name |
+----------------------------------------------
+|   0 | SELECT STATEMENT              |      |
+|   1 |  HASH JOIN                    |      |
+|-  2 |   NESTED LOOPS                |      |
+|-  3 |    NESTED LOOPS               |      |
+|-  4 |     STATISTICS COLLECTOR      |      |
+|   5 |      TABLE ACCESS FULL        | T1   |
+|-  6 |     INDEX RANGE SCAN          | I2   |
+|-  7 |    TABLE ACCESS BY INDEX ROWID| T2   |
+|   8 |   TABLE ACCESS FULL           | T2   |
+----------------------------------------------
+
+Note
+-----
+   - this is an adaptive plan (rows marked '-' are inactive)
+</code></pre>
+
+<p>Whether or not an operation is skipped in a specific execution plan is stored in the <code>other_xml</code> column of <code>v$sql_plan</code>. Therefore we could extract this information to get a mapping between the reported plan line ids and the plan line ids shown in the execution plan 
+when calling the <code>dbms_xplan.display*</code> functions without the <code>ADAPTIVE</code> formatting option.</p>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">with</span> <span class="n">plan_line_ids</span> <span class="k">as</span> <span class="p">(</span> 
+  <span class="k">select</span> <span class="n">extractvalue</span><span class="p">(</span><span class="n">value</span><span class="p">(</span><span class="n">ops</span><span class="p">),</span> <span class="s1">&#39;/row/@op&#39;</span><span class="p">)</span>  <span class="n">op</span><span class="p">,</span> 
+         <span class="n">extractvalue</span><span class="p">(</span><span class="n">value</span><span class="p">(</span><span class="n">ops</span><span class="p">),</span> <span class="s1">&#39;/row/@skp&#39;</span><span class="p">)</span> <span class="n">skip</span> 
+  <span class="k">from</span> <span class="k">table</span> <span class="p">(</span> 
+    <span class="k">select</span> <span class="n">xmlsequence</span><span class="p">(</span><span class="k">extract</span><span class="p">(</span><span class="n">xmltype</span><span class="p">(</span><span class="n">other_xml</span><span class="p">),</span> <span class="s1">&#39;/*/display_map/row&#39;</span><span class="p">))</span> 
+    <span class="k">from</span> <span class="n">v$sql_plan</span> 
+    <span class="c1">-- change plan_hash_value and child_number</span>
+    <span class="k">where</span> <span class="n">plan_hash_value</span> <span class="o">=</span> <span class="mi">1838229974</span> <span class="k">and</span> <span class="n">child_number</span> <span class="o">=</span> <span class="mi">0</span> 
+    <span class="k">and</span> <span class="n">other_xml</span> <span class="k">is</span> <span class="k">not</span> <span class="k">null</span>
+  <span class="p">)</span> <span class="n">ops</span>
+<span class="p">)</span> 
+<span class="k">select</span> <span class="n">o</span><span class="p">.</span><span class="n">op</span> <span class="k">as</span> <span class="n">plan_line_id_adaptive</span><span class="p">,</span> 
+  <span class="n">o</span><span class="p">.</span><span class="n">op</span> <span class="o">-</span> <span class="p">(</span> 
+    <span class="k">select</span> <span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span> 
+    <span class="k">from</span> <span class="n">plan_line_ids</span> <span class="n">i</span> 
+    <span class="k">where</span> <span class="n">i</span><span class="p">.</span><span class="n">op</span> <span class="o">&lt;=</span> <span class="n">o</span><span class="p">.</span><span class="n">op</span> <span class="k">and</span> <span class="n">i</span><span class="p">.</span><span class="n">skip</span> <span class="o">=</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="n">plan_line_id</span> 
+<span class="k">from</span> <span class="n">plan_line_ids</span> <span class="n">o</span> 
+<span class="k">where</span>  <span class="n">o</span><span class="p">.</span><span class="n">skip</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span><span class="p">;</span></code></pre></figure>
+
+<p>Output:</p>
+<pre><code>PLAN_LINE_ID_ADAPTIVE     PLAN_LINE_ID
+------------------------- ------------
+1                                    1
+5                                    2
+8                                    3
+</code></pre>
+
+<h2 id="conclusion">Conclusion</h2>
+<p>This demo showed an example where it was obvious that there’s something wrong, because the reported plan line id simply didn’t exist in the plan. Depending on the reported line ids it is not necessarily obvious at first. So if you’re using the <code>sql_plan_line_id</code> from <code>v$session</code>, <code>v$active_session_history</code> or <code>dba_hist_active_sess_history</code> to determine where in the execution plan Oracle is spending time, always make sure to check whether you’re looking at an adaptive plan or not.</p>
+
+</div>
+
+<a id="comments"></a>
+<div id="disqus_thread"></div>
+<script>
+
+var disqus_config = function () {
+this.page.url = "https://blog.aregger.io/2019/12/12/reported-sql-plan-line-id-and-adaptive-plans/";  // Replace PAGE_URL with your page's canonical URL variable
+this.page.identifier = "/2019/12/12/reported-sql-plan-line-id-and-adaptive-plans"; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+s.src = 'https://blog-aregger-io.disqus.com/embed.js';
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+                            
+
+    </div>
+
+  </body>
+</html>
