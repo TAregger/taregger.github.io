@@ -39,7 +39,7 @@
 
   <!-- Begin Jekyll SEO tag v2.6.1 -->
 <title>SQL Plan Baselines and the Optimizer Environment | blog.aregger.io</title>
-<meta name="generator" content="Jekyll v3.8.6" />
+<meta name="generator" content="Jekyll v4.0.0" />
 <meta property="og:title" content="SQL Plan Baselines and the Optimizer Environment" />
 <meta name="author" content="Thomas Aregger" />
 <meta property="og:locale" content="en_US" />
@@ -57,7 +57,7 @@
 <meta name="twitter:site" content="@taregger" />
 <meta name="twitter:creator" content="@taregger" />
 <script type="application/ld+json">
-{"datePublished":"2019-01-06T00:00:00+01:00","image":"https://blog.aregger.io/public/twitter_default_card.png","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/2019/01/06/sql-plan-baselines-and-the-optimizer-environment/"},"url":"https://blog.aregger.io/2019/01/06/sql-plan-baselines-and-the-optimizer-environment/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"It should be clear that a SQL Plan Baseline becomes non-reproducible if you change the underlying objects in a way that prevents the optimizer from using the given execution plan (e.g. by dropping an index used in the execution plan). In such a situation the plan baseline will be marked as non-reproducible.","headline":"SQL Plan Baselines and the Optimizer Environment","dateModified":"2019-01-06T00:00:00+01:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+{"image":"https://blog.aregger.io/public/twitter_default_card.png","author":{"@type":"Person","name":"Thomas Aregger"},"url":"https://blog.aregger.io/2019/01/06/sql-plan-baselines-and-the-optimizer-environment/","headline":"SQL Plan Baselines and the Optimizer Environment","dateModified":"2019-01-06T00:00:00+01:00","datePublished":"2019-01-06T00:00:00+01:00","description":"It should be clear that a SQL Plan Baseline becomes non-reproducible if you change the underlying objects in a way that prevents the optimizer from using the given execution plan (e.g. by dropping an index used in the execution plan). In such a situation the plan baseline will be marked as non-reproducible.","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/2019/01/06/sql-plan-baselines-and-the-optimizer-environment/"},"@type":"BlogPosting","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -129,7 +129,7 @@
     </div>
 
     <!-- 
-    <p>&copy; 2019. All rights reserved.</p>
+    <p>&copy; 2020. All rights reserved.</p>
     -->
   </div>
 </div>
@@ -146,15 +146,15 @@
 <h1 id="demo">Demo</h1>
 <p>Let’s create a simple table with an index</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">SQL</span><span class="o">&gt;</span> <span class="k">create</span> <span class="k">table</span> <span class="n">numbers</span> <span class="p">(</span><span class="n">num</span> <span class="nb">number</span><span class="p">(</span><span class="mi">4</span><span class="p">));</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">SQL</span><span class="o">&gt;</span> <span class="k">create</span> <span class="k">table</span> <span class="n">numbers</span> <span class="p">(</span><span class="n">num</span> <span class="n">number</span><span class="p">(</span><span class="mi">4</span><span class="p">));</span>
 <span class="k">SQL</span><span class="o">&gt;</span> <span class="k">create</span> <span class="k">index</span> <span class="n">num</span> <span class="k">on</span> <span class="n">numbers</span><span class="p">(</span><span class="n">num</span><span class="p">);</span>
 <span class="k">SQL</span><span class="o">&gt;</span> <span class="k">insert</span> <span class="k">into</span> <span class="n">numbers</span> <span class="k">values</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
 <span class="k">SQL</span><span class="o">&gt;</span> <span class="k">commit</span><span class="p">;</span></code></pre></figure>
 
 <p>We issue a simple query with some bind variables…</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">SQL</span><span class="o">&gt;</span> <span class="n">var</span> <span class="n">fromNum</span> <span class="nb">number</span><span class="p">;</span>
-<span class="k">SQL</span><span class="o">&gt;</span> <span class="n">var</span> <span class="n">toNum</span> <span class="nb">number</span><span class="p">;</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">SQL</span><span class="o">&gt;</span> <span class="n">var</span> <span class="n">fromNum</span> <span class="n">number</span><span class="p">;</span>
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="n">var</span> <span class="n">toNum</span> <span class="n">number</span><span class="p">;</span>
 <span class="k">SQL</span><span class="o">&gt;</span> <span class="k">exec</span> <span class="p">:</span><span class="n">fromNum</span> <span class="p">:</span><span class="o">=</span> <span class="mi">9</span><span class="p">;</span> <span class="p">:</span><span class="n">toNum</span> <span class="p">:</span><span class="o">=</span> <span class="mi">11</span><span class="p">;</span>
 
 <span class="k">SQL</span><span class="o">&gt;</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">numbers</span> <span class="k">where</span> <span class="n">num</span> <span class="k">between</span> <span class="p">:</span><span class="n">fromNum</span> <span class="k">and</span> <span class="p">:</span><span class="n">toNum</span><span class="p">;</span>
@@ -165,9 +165,9 @@
 
 <p>… and display its execution plan</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">SQL</span><span class="o">&gt;</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">());</span></code></pre></figure>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">SQL</span><span class="o">&gt;</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">());</span></code></pre></figure>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>SQL_ID  3gurcdja09xfm, child number 0
+<figure class="highlight"><pre><code class="language-text" data-lang="text">SQL_ID  3gurcdja09xfm, child number 0
 -------------------------------------
 select * from numbers where num between :fromNum and :toNum
 
@@ -185,14 +185,14 @@ Predicate Information (identified by operation id):
 ---------------------------------------------------
 
    1 - filter(:TONUM&gt;=:FROMNUM)
-   2 - access(&quot;NUM&quot;&gt;=:FROMNUM AND &quot;NUM&quot;&lt;=:TONUM)</code></pre></figure>
+   2 - access("NUM"&gt;=:FROMNUM AND "NUM"&lt;=:TONUM)</code></pre></figure>
 
-<p>Especially note the <code>FILTER</code> operation on plan line id 1. We create a baseline for this statement.</p>
+<p>Especially note the <code class="highlighter-rouge">FILTER</code> operation on plan line id 1. We create a baseline for this statement.</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">SQL</span><span class="o">&gt;</span> <span class="n">var</span> <span class="n">baselineCount</span> <span class="nb">number</span><span class="p">;</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">SQL</span><span class="o">&gt;</span> <span class="n">var</span> <span class="n">baselineCount</span> <span class="n">number</span><span class="p">;</span>
 <span class="k">SQL</span><span class="o">&gt;</span> <span class="k">exec</span> <span class="p">:</span><span class="n">baselineCount</span> <span class="p">:</span><span class="o">=</span> <span class="n">dbms_spm</span><span class="p">.</span><span class="n">load_plans_from_cursor_cache</span><span class="p">(</span>
-                                 <span class="n">sql_id</span><span class="o">=&gt;</span><span class="s1">&#39;3gurcdja09xfm&#39;</span><span class="p">,</span>
-                                 <span class="n">fixed</span> <span class="o">=&gt;</span> <span class="s1">&#39;YES&#39;</span><span class="p">);</span>
+                                 <span class="n">sql_id</span><span class="o">=&gt;</span><span class="s1">'3gurcdja09xfm'</span><span class="p">,</span>
+                                 <span class="nb">fixed</span> <span class="o">=&gt;</span> <span class="s1">'YES'</span><span class="p">);</span>
 
 <span class="n">PL</span><span class="o">/</span><span class="k">SQL</span> <span class="k">procedure</span> <span class="n">successfully</span> <span class="n">completed</span><span class="p">.</span>
 
@@ -204,7 +204,7 @@ Predicate Information (identified by operation id):
 
 <p>When we execute the query again, we see a note at the end of the execution plan telling us that the created baseline was used.</p>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>SQL_ID  3gurcdja09xfm, child number 0
+<figure class="highlight"><pre><code class="language-text" data-lang="text">SQL_ID  3gurcdja09xfm, child number 0
 -------------------------------------
 select * from numbers where num between :fromNum and :toNum
 
@@ -222,19 +222,19 @@ Predicate Information (identified by operation id):
 ---------------------------------------------------
 
    1 - filter(:TONUM&gt;=:FROMNUM)
-   2 - access(&quot;NUM&quot;&gt;=:FROMNUM AND &quot;NUM&quot;&lt;=:TONUM)
+   2 - access("NUM"&gt;=:FROMNUM AND "NUM"&lt;=:TONUM)
 
 Note
 -----
    - SQL plan baseline SQL_PLAN_4vaynk3kdp6xm5792f51e used for this statement</code></pre></figure>
 
-<p>Now let’s change an optimizer parameter and re-execute the query. We also trace the <code>SQL_Compiler</code> component to get more information about what’s happening behind the scenes:</p>
+<p>Now let’s change an optimizer parameter and re-execute the query. We also trace the <code class="highlighter-rouge">SQL_Compiler</code> component to get more information about what’s happening behind the scenes:</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">SQL</span><span class="o">&gt;</span> <span class="k">alter</span> <span class="k">session</span> <span class="k">set</span> <span class="ss">&quot;_optimizer_generate_transitive_pred&quot;</span> <span class="o">=</span> <span class="k">false</span><span class="p">;</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">SQL</span><span class="o">&gt;</span> <span class="k">alter</span> <span class="k">session</span> <span class="k">set</span> <span class="nv">"_optimizer_generate_transitive_pred"</span> <span class="o">=</span> <span class="k">false</span><span class="p">;</span>
 
 <span class="k">Session</span> <span class="n">altered</span><span class="p">.</span>
 
-<span class="k">SQL</span><span class="o">&gt;</span> <span class="k">alter</span> <span class="k">session</span> <span class="k">set</span> <span class="n">events</span> <span class="s1">&#39;trace [SQL_Compiler.*]&#39;</span><span class="p">;</span>
+<span class="k">SQL</span><span class="o">&gt;</span> <span class="k">alter</span> <span class="k">session</span> <span class="k">set</span> <span class="n">events</span> <span class="s1">'trace [SQL_Compiler.*]'</span><span class="p">;</span>
 
 <span class="k">Session</span> <span class="n">altered</span><span class="p">.</span>
 
@@ -246,7 +246,7 @@ Note
 
 <span class="k">SQL</span><span class="o">&gt;</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">());</span></code></pre></figure>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>SQL_ID  3gurcdja09xfm, child number 1
+<figure class="highlight"><pre><code class="language-text" data-lang="text">SQL_ID  3gurcdja09xfm, child number 1
 -------------------------------------
 select * from numbers where num between :fromNum and :toNum
 
@@ -262,7 +262,7 @@ Plan hash value: 2824003243
 Predicate Information (identified by operation id):
 ---------------------------------------------------
 
-   1 - access(&quot;NUM&quot;&gt;=:FROMNUM AND &quot;NUM&quot;&lt;=:TONUM)
+   1 - access("NUM"&gt;=:FROMNUM AND "NUM"&lt;=:TONUM)
 
 Note
 -----
@@ -275,18 +275,18 @@ Elapsed: 00:00:00.14</code></pre></figure>
 
 <p>In the trace file the following lines are written:</p>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>------- START SPM Plan Dump -------
+<figure class="highlight"><pre><code class="language-text" data-lang="text">------- START SPM Plan Dump -------
 SPM: failed to reproduce the plan using the following info:
   parse_schema name        : THOMAS
   plan_baseline signature  : 5596800680717884339
   plan_baseline plan_id    : 1469248798
   plan_baseline hintset    :
     hint num  1 len 27 text: IGNORE_OPTIM_EMBEDDED_HINTS
-    hint num  2 len 35 text: OPTIMIZER_FEATURES_ENABLE(&#39;18.1.0&#39;)
-    hint num  3 len 20 text: DB_VERSION(&#39;18.1.0&#39;)
+    hint num  2 len 35 text: OPTIMIZER_FEATURES_ENABLE('18.1.0')
+    hint num  3 len 20 text: DB_VERSION('18.1.0')
     hint num  4 len  8 text: ALL_ROWS
-    hint num  5 len 22 text: OUTLINE_LEAF(@&quot;SEL$1&quot;)
-    hint num  6 len 51 text: INDEX(@&quot;SEL$1&quot; &quot;NUMBERS&quot;@&quot;SEL$1&quot; (&quot;NUMBERS&quot;.&quot;NUM&quot;))
+    hint num  5 len 22 text: OUTLINE_LEAF(@"SEL$1")
+    hint num  6 len 51 text: INDEX(@"SEL$1" "NUMBERS"@"SEL$1" ("NUMBERS"."NUM"))
 SPM: generated non-matching plan:
 ----- Explain Plan Dump -----
 ----- Plan Table -----
@@ -301,7 +301,7 @@ Plan Table
 | 1   |  INDEX RANGE SCAN | NUM     |     1 |     3 |     1 |  00:00:01 |
 ------------------------------------+-----------------------------------+</code></pre></figure>
 
-<p>The generated plan with help from the hints from the baseline produced a slightly different plan (no <code>FILTER</code> operation anymore).
+<p>The generated plan with help from the hints from the baseline produced a slightly different plan (no <code class="highlighter-rouge">FILTER</code> operation anymore).
 This shows that the hints stored in this particular baseline are not sufficient to generate the exact same execution plan.</p>
 
 <p>Instead, Oracle will now use the generated plan with the lowest cost. In this example the used plan is not much worse than the one stored in the baseline, but the key point is that the baseline was not used. In real scenarios this could mean that a possibly much worse plan is used.</p>
@@ -309,18 +309,18 @@ This shows that the hints stored in this particular baseline are not sufficient 
 <h1 id="types-of-hints-not-stored-in-sql-plan-baselines">Types of hints not stored in SQL Plan Baselines</h1>
 <p>From my observations the following types of hints are not stored in SQL Plan Baselines:</p>
 <ul>
-  <li>Optimizer parameters (<code>opt_param(...)</code>)</li>
-  <li>Parallel hints (e.g. <code>PARALLEL</code> or <code>NO_PARALLEL</code>) when influenced by session level settings, by executing <code>alter session force parallel query</code> for example.</li>
+  <li>Optimizer parameters (<code class="highlighter-rouge">opt_param(...)</code>)</li>
+  <li>Parallel hints (e.g. <code class="highlighter-rouge">PARALLEL</code> or <code class="highlighter-rouge">NO_PARALLEL</code>) when influenced by session level settings, by executing <code class="highlighter-rouge">alter session force parallel query</code> for example.</li>
 </ul>
 
-<p>So, if the optimizer environment of the session executing the statement differs from the environment where the execution plan of the baseline was generated, there’s a potential for non-reproducible plans. This is only true if there is no regular hint leading to the same execution plan. If, for example, an execution plan is doing an index join, the SQL Plan Baseline would store the hint <code>INDEX_JOIN</code>. Disabling index joins on session level (<code>alter session set "_index_join_enabled" = false</code>) has therefore no impact on the reproducibility of the baseline.</p>
+<p>So, if the optimizer environment of the session executing the statement differs from the environment where the execution plan of the baseline was generated, there’s a potential for non-reproducible plans. This is only true if there is no regular hint leading to the same execution plan. If, for example, an execution plan is doing an index join, the SQL Plan Baseline would store the hint <code class="highlighter-rouge">INDEX_JOIN</code>. Disabling index joins on session level (<code class="highlighter-rouge">alter session set "_index_join_enabled" = false</code>) has therefore no impact on the reproducibility of the baseline.</p>
 
 <p>When loading an execution plan into a SQL Plan baseline always keep in mind what optimizer environment was used to generate the plan and what optimizer environment is used by the session supposed to benefit from the SQL Plan Baseline.</p>
 
 <h1 id="add-the-missing-hints-to-the-sql-statement">Add the missing hints to the SQL statement</h1>
 <p>After we found out that our plan could not have been reproduced with the set of stored hints, the trace output can give us some valuable information about the sessions optimizer environment:</p>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>***************************************
+<figure class="highlight"><pre><code class="language-text" data-lang="text">***************************************
 PARAMETERS USED BY THE OPTIMIZER
 ********************************
   *************************************
@@ -340,16 +340,16 @@ Bug Fix Control Environment
 
 <p>There are 2 ways to add the necessary hint to our statement:</p>
 <ol>
-  <li>Packing the SQL Plan Baseline into a staging table (<code>DBMS_SPM.PACK_STGTAB_BASELINE</code>), modify the hints stored in the <code>OTHER_XML</code> column and unpack it again.</li>
+  <li>Packing the SQL Plan Baseline into a staging table (<code class="highlighter-rouge">DBMS_SPM.PACK_STGTAB_BASELINE</code>), modify the hints stored in the <code class="highlighter-rouge">OTHER_XML</code> column and unpack it again.</li>
   <li>Create a SQL Patch.</li>
 </ol>
 
-<p>The second approach is probably more supported, so we demonstrate that one. We just add the hint <code>opt_param('_optimizer_generate_transitive_pred' 'true')</code></p>
+<p>The second approach is probably more supported, so we demonstrate that one. We just add the hint <code class="highlighter-rouge">opt_param('_optimizer_generate_transitive_pred' 'true')</code></p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">SQL</span><span class="o">&gt;</span> <span class="n">var</span> <span class="n">patchName</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">128</span><span class="p">)</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">SQL</span><span class="o">&gt;</span> <span class="n">var</span> <span class="n">patchName</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">128</span><span class="p">)</span>
 <span class="k">SQL</span><span class="o">&gt;</span> <span class="k">exec</span> <span class="p">:</span><span class="n">patchName</span> <span class="p">:</span><span class="o">=</span> <span class="n">dbms_sqldiag</span><span class="p">.</span><span class="n">create_sql_patch</span><span class="p">(</span>
-  <span class="n">sql_id</span> <span class="o">=&gt;</span> <span class="s1">&#39;3gurcdja09xfm&#39;</span><span class="p">,</span>
-  <span class="n">hint_text</span><span class="o">=&gt;</span><span class="s1">&#39;opt_param(&#39;&#39;_optimizer_generate_transitive_pred&#39;&#39; &#39;&#39;true&#39;&#39;)&#39;</span><span class="p">);</span>
+  <span class="n">sql_id</span> <span class="o">=&gt;</span> <span class="s1">'3gurcdja09xfm'</span><span class="p">,</span>
+  <span class="n">hint_text</span><span class="o">=&gt;</span><span class="s1">'opt_param(</span><span class="se">''</span><span class="s1">_optimizer_generate_transitive_pred</span><span class="se">''</span><span class="s1"> </span><span class="se">''</span><span class="s1">true</span><span class="se">''</span><span class="s1">)'</span><span class="p">);</span>
 <span class="n">PL</span><span class="o">/</span><span class="k">SQL</span> <span class="k">procedure</span> <span class="n">successfully</span> <span class="n">completed</span><span class="p">.</span>
 
 <span class="k">SQL</span><span class="o">&gt;</span> <span class="n">print</span> <span class="n">patchName</span>
@@ -360,7 +360,7 @@ Bug Fix Control Environment
 
 <p>Now let’s execute the query again:</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">SQL</span><span class="o">&gt;</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">numbers</span> <span class="k">where</span> <span class="n">num</span> <span class="k">between</span> <span class="p">:</span><span class="n">fromNum</span> <span class="k">and</span> <span class="p">:</span><span class="n">toNum</span><span class="p">;</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">SQL</span><span class="o">&gt;</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">numbers</span> <span class="k">where</span> <span class="n">num</span> <span class="k">between</span> <span class="p">:</span><span class="n">fromNum</span> <span class="k">and</span> <span class="p">:</span><span class="n">toNum</span><span class="p">;</span>
 
        <span class="n">NUM</span>
 <span class="c1">----------</span>
@@ -368,7 +368,7 @@ Bug Fix Control Environment
 
 <span class="k">SQL</span><span class="o">&gt;</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">());</span></code></pre></figure>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>SQL_ID  3gurcdja09xfm, child number 0
+<figure class="highlight"><pre><code class="language-text" data-lang="text">SQL_ID  3gurcdja09xfm, child number 0
 -------------------------------------
 select * from numbers where num between :fromNum and :toNum
 
@@ -386,11 +386,11 @@ Predicate Information (identified by operation id):
 ---------------------------------------------------
 
    1 - filter(:TONUM&gt;=:FROMNUM)
-   2 - access(&quot;NUM&quot;&gt;=:FROMNUM AND &quot;NUM&quot;&lt;=:TONUM)
+   2 - access("NUM"&gt;=:FROMNUM AND "NUM"&lt;=:TONUM)
 
 Note
 -----
-   - SQL patch &quot;SYS_SQLPTCH_0168234fa3400005&quot; used for this statement
+   - SQL patch "SYS_SQLPTCH_0168234fa3400005" used for this statement
    - SQL plan baseline SQL_PLAN_4vaynk3kdp6xm5792f51e used for this statement
 
 

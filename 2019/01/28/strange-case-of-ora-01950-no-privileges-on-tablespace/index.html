@@ -39,7 +39,7 @@
 
   <!-- Begin Jekyll SEO tag v2.6.1 -->
 <title>Strange case of ORA-01950: no privileges on tablespace | blog.aregger.io</title>
-<meta name="generator" content="Jekyll v3.8.6" />
+<meta name="generator" content="Jekyll v4.0.0" />
 <meta property="og:title" content="Strange case of ORA-01950: no privileges on tablespace" />
 <meta name="author" content="Thomas Aregger" />
 <meta property="og:locale" content="en_US" />
@@ -57,7 +57,7 @@
 <meta name="twitter:site" content="@taregger" />
 <meta name="twitter:creator" content="@taregger" />
 <script type="application/ld+json">
-{"datePublished":"2019-01-28T00:00:00+01:00","image":"https://blog.aregger.io/public/twitter_default_card.png","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/2019/01/28/strange-case-of-ora-01950-no-privileges-on-tablespace/"},"url":"https://blog.aregger.io/2019/01/28/strange-case-of-ora-01950-no-privileges-on-tablespace/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"I recently faced a strange issue where a user got an ORA-01950: no privileges on tablespace while issuing some DML statement. A quick look on DBA_TS_QUOTAS showed that the segment owner (according to DBA_SEGMENTS) has unlimited quota on the reported tablespace.","headline":"Strange case of ORA-01950: no privileges on tablespace","dateModified":"2019-01-28T00:00:00+01:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+{"image":"https://blog.aregger.io/public/twitter_default_card.png","author":{"@type":"Person","name":"Thomas Aregger"},"url":"https://blog.aregger.io/2019/01/28/strange-case-of-ora-01950-no-privileges-on-tablespace/","headline":"Strange case of ORA-01950: no privileges on tablespace","dateModified":"2019-01-28T00:00:00+01:00","datePublished":"2019-01-28T00:00:00+01:00","description":"I recently faced a strange issue where a user got an ORA-01950: no privileges on tablespace while issuing some DML statement. A quick look on DBA_TS_QUOTAS showed that the segment owner (according to DBA_SEGMENTS) has unlimited quota on the reported tablespace.","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/2019/01/28/strange-case-of-ora-01950-no-privileges-on-tablespace/"},"@type":"BlogPosting","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -129,7 +129,7 @@
     </div>
 
     <!-- 
-    <p>&copy; 2019. All rights reserved.</p>
+    <p>&copy; 2020. All rights reserved.</p>
     -->
   </div>
 </div>
@@ -139,17 +139,17 @@
       <div class="post">
   <h1 class="post-title">Strange case of ORA-01950: no privileges on tablespace</h1>
   <span class="post-date">28 Jan 2019</span>
-  <p>I recently faced a strange issue where a user got an <code>ORA-01950: no privileges on tablespace</code> while issuing some DML statement.
-A quick look on <code>DBA_TS_QUOTAS</code> showed that the segment owner (according to <code>DBA_SEGMENTS</code>) has unlimited quota on the reported tablespace.</p>
+  <p>I recently faced a strange issue where a user got an <code class="highlighter-rouge">ORA-01950: no privileges on tablespace</code> while issuing some DML statement.
+A quick look on <code class="highlighter-rouge">DBA_TS_QUOTAS</code> showed that the segment owner (according to <code class="highlighter-rouge">DBA_SEGMENTS</code>) has unlimited quota on the reported tablespace.</p>
 
-<p>After checking the view definition of <code>DBA_SEGMENTS</code> and its backing view <code>SYS_DBA_SEGS</code> I became a bit suspicious because the reported owner is taken from <code>SYS.OBJ$</code>. Could it be, that the segment is in fact owned by a different user?</p>
+<p>After checking the view definition of <code class="highlighter-rouge">DBA_SEGMENTS</code> and its backing view <code class="highlighter-rouge">SYS_DBA_SEGS</code> I became a bit suspicious because the reported owner is taken from <code class="highlighter-rouge">SYS.OBJ$</code>. Could it be, that the segment is in fact owned by a different user?</p>
 
-<p>Bingo! Querying <code>SYS.SEG$</code> revealed that the owner of the segment (<code>USER#</code>) is indeed a different one than the one reported by <code>DBA_SEGMENTS</code>. In fact, the user did not even exist anymore.</p>
+<p>Bingo! Querying <code class="highlighter-rouge">SYS.SEG$</code> revealed that the owner of the segment (<code class="highlighter-rouge">USER#</code>) is indeed a different one than the one reported by <code class="highlighter-rouge">DBA_SEGMENTS</code>. In fact, the user did not even exist anymore.</p>
 
 <p>The following query shows all segments where the segment owner does not exist anymore:</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="n">se</span><span class="p">.</span><span class="k">owner</span><span class="p">,</span> <span class="n">se</span><span class="p">.</span><span class="n">segment_name</span><span class="p">,</span> <span class="n">se</span><span class="p">.</span><span class="n">segment_type</span>
-<span class="k">from</span> <span class="n">sys</span><span class="p">.</span><span class="n">seg$</span> <span class="n">s</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">select</span> <span class="n">se</span><span class="p">.</span><span class="k">owner</span><span class="p">,</span> <span class="n">se</span><span class="p">.</span><span class="n">segment_name</span><span class="p">,</span> <span class="n">se</span><span class="p">.</span><span class="n">segment_type</span>
+<span class="k">from</span> <span class="n">sys</span><span class="p">.</span><span class="n">seg</span><span class="err">$</span> <span class="n">s</span>
 <span class="k">join</span> <span class="n">dba_segments</span> <span class="n">se</span>
   <span class="k">on</span> <span class="p">(</span><span class="n">se</span><span class="p">.</span><span class="n">relative_fno</span> <span class="o">=</span> <span class="n">s</span><span class="p">.</span><span class="n">file</span><span class="o">#</span> <span class="k">and</span> <span class="n">se</span><span class="p">.</span><span class="n">header_block</span> <span class="o">=</span> <span class="n">s</span><span class="p">.</span><span class="n">block</span><span class="o">#</span><span class="p">)</span>
 <span class="k">where</span> <span class="k">not</span> <span class="k">exists</span> <span class="p">(</span><span class="k">select</span> <span class="mi">1</span> <span class="k">from</span> <span class="n">dba_users</span> <span class="n">u</span> <span class="k">where</span> <span class="n">u</span><span class="p">.</span><span class="n">user_id</span> <span class="o">=</span><span class="n">s</span><span class="p">.</span><span class="k">user</span><span class="o">#</span><span class="p">);</span></code></pre></figure>

@@ -55,9 +55,15 @@ html {
 
 .sidebar {
   text-align: center;
-  padding: 2rem 1rem;
+  padding: 1.25rem 1rem;
   color: rgba(255,255,255,.5);
   background-color: #202020;
+}
+
+@media (min-width: 48em) {
+  .sidebar {
+    padding: 2rem 1rem;
+  }
 }
 
 .sidebar-nav-social a:hover, a:active {
@@ -98,9 +104,17 @@ html {
   color: #fff;
   margin-top: 0;
   font-family: "Abril Fatface", serif;
-  font-size: 3.25rem;
-  word-spacing: -10px;
+  font-size: 2.25rem;
+  word-spacing: -6px;
 }
+
+@media (min-width: 48em) {
+  .sidebar-about h1 {
+    font-size: 3.25rem;
+    word-spacing: -10px;
+  }
+}
+
 
 .sidebar-about a:hover, a:focus, a:active {
   text-decoration: none;
@@ -111,8 +125,12 @@ html {
   margin-bottom: 1rem;
 }
 .sidebar-nav-item {
-  display: block;
   line-height: 1.75;
+}
+@media (min-width: 48em) {
+  .sidebar-nav-item {
+    display: block;
+  }
 }
 a.sidebar-nav-item:hover,
 a.sidebar-nav-item:focus {

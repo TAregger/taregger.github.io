@@ -39,7 +39,7 @@
 
   <!-- Begin Jekyll SEO tag v2.6.1 -->
 <title>Find functions with pragma RESTRICT_REFERENCES | blog.aregger.io</title>
-<meta name="generator" content="Jekyll v3.8.6" />
+<meta name="generator" content="Jekyll v4.0.0" />
 <meta property="og:title" content="Find functions with pragma RESTRICT_REFERENCES" />
 <meta name="author" content="Thomas Aregger" />
 <meta property="og:locale" content="en_US" />
@@ -55,7 +55,7 @@
 <meta name="twitter:site" content="@taregger" />
 <meta name="twitter:creator" content="@taregger" />
 <script type="application/ld+json">
-{"datePublished":"2017-12-18T19:17:14+01:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/find-procedures-pragma-restrict_references/"},"url":"https://blog.aregger.io/find-procedures-pragma-restrict_references/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"If you want to do parallel DML and use packaged functions in the statement, the functions need to fulfill certain requirements. Otherwise you will get the following note in the plan and PDML is not used: - PDML disabled because function is not pure and not declared parallel enabled","headline":"Find functions with pragma RESTRICT_REFERENCES","dateModified":"2017-12-18T19:17:14+01:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+{"author":{"@type":"Person","name":"Thomas Aregger"},"url":"https://blog.aregger.io/find-procedures-pragma-restrict_references/","headline":"Find functions with pragma RESTRICT_REFERENCES","dateModified":"2017-12-18T19:17:14+01:00","datePublished":"2017-12-18T19:17:14+01:00","description":"If you want to do parallel DML and use packaged functions in the statement, the functions need to fulfill certain requirements. Otherwise you will get the following note in the plan and PDML is not used: - PDML disabled because function is not pure and not declared parallel enabled","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/find-procedures-pragma-restrict_references/"},"@type":"BlogPosting","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -127,7 +127,7 @@
     </div>
 
     <!-- 
-    <p>&copy; 2019. All rights reserved.</p>
+    <p>&copy; 2020. All rights reserved.</p>
     -->
   </div>
 </div>
@@ -139,49 +139,49 @@
   <span class="post-date">18 Dec 2017</span>
   <p>If you want to do parallel DML and use packaged functions in the statement, the functions need to fulfill certain requirements. Otherwise you will get the following note in the plan and PDML is not used:</p>
 
-<pre><code>- PDML disabled because function is not pure and not declared parallel enabled
-</code></pre>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>- PDML disabled because function is not pure and not declared parallel enabled
+</code></pre></div></div>
 
 <p>This means your function must be either pure or declared with the <a href="https://docs.oracle.com/en/database/oracle/oracle-database/12.2/lnpls/PARALLEL_ENABLE-clause.html#GUID-CFF3C7D3-6438-44C2-9FAF-569F246C37CA">parallel-enable clause</a>.</p>
 
-<p>The parallel enabled requirement is easy to check, you can find it out by querying <code>DBA_PROCEDURES.PARALLEL</code></p>
+<p>The parallel enabled requirement is easy to check, you can find it out by querying <code class="highlighter-rouge">DBA_PROCEDURES.PARALLEL</code></p>
 
 <h1 id="pure-functions">Pure functions</h1>
 
 <p>The second one is a bit harder, because it is not directly exposed via a database view.</p>
 
-<p>First we need to know what <em>pure</em> means in this case. A function is considered as pure if it is defined with the pragma <a href="https://docs.oracle.com/en/database/oracle/oracle-database/12.2/lnpls/RESTRICT_REFERENCES-pragma.html#GUID-D189A0B4-D0D3-4951-BFC2-7D996F1659FE">RESTRICT_REFERENCES</a> and all four constraints <code>RNDS</code>, <code>WNDS</code>, <code>RNPS</code> and <code>WNPS</code>.</p>
+<p>First we need to know what <em>pure</em> means in this case. A function is considered as pure if it is defined with the pragma <a href="https://docs.oracle.com/en/database/oracle/oracle-database/12.2/lnpls/RESTRICT_REFERENCES-pragma.html#GUID-D189A0B4-D0D3-4951-BFC2-7D996F1659FE">RESTRICT_REFERENCES</a> and all four constraints <code class="highlighter-rouge">RNDS</code>, <code class="highlighter-rouge">WNDS</code>, <code class="highlighter-rouge">RNPS</code> and <code class="highlighter-rouge">WNPS</code>.</p>
 
-<p>This information is encoded in <code>SYS.PROCEDUREINFO$.PROPERTIES</code>. The following query can be used to display which constraints of the pragma are used in a function/procedure:</p>
+<p>This information is encoded in <code class="highlighter-rouge">SYS.PROCEDUREINFO$.PROPERTIES</code>. The following query can be used to display which constraints of the pragma are used in a function/procedure:</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="n">o</span><span class="p">.</span><span class="n">OBJECT_NAME</span><span class="p">,</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">select</span> <span class="n">o</span><span class="p">.</span><span class="n">OBJECT_NAME</span><span class="p">,</span>
        <span class="n">pi</span><span class="p">.</span><span class="n">procedurename</span><span class="p">,</span>
-       <span class="n">decode</span><span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">8388608</span><span class="p">),</span> <span class="mi">8388608</span><span class="p">,</span> <span class="s1">&#39;NO&#39;</span><span class="p">,</span> <span class="s1">&#39;YES&#39;</span><span class="p">)</span>
+       <span class="n">decode</span><span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">8388608</span><span class="p">),</span> <span class="mi">8388608</span><span class="p">,</span> <span class="s1">'NO'</span><span class="p">,</span> <span class="s1">'YES'</span><span class="p">)</span>
          <span class="k">as</span> <span class="n">pragma_restrict_references</span><span class="p">,</span>
-       <span class="n">decode</span><span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">524288</span><span class="p">),</span> <span class="mi">524288</span><span class="p">,</span> <span class="s1">&#39;NO&#39;</span><span class="p">,</span> <span class="s1">&#39;YES&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">rnds</span><span class="p">,</span>
-       <span class="n">decode</span><span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">1048576</span><span class="p">),</span> <span class="mi">1048576</span><span class="p">,</span> <span class="s1">&#39;NO&#39;</span><span class="p">,</span> <span class="s1">&#39;YES&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">wnds</span><span class="p">,</span>
-       <span class="n">decode</span><span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">131072</span><span class="p">),</span> <span class="mi">131072</span><span class="p">,</span> <span class="s1">&#39;NO&#39;</span><span class="p">,</span> <span class="s1">&#39;YES&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">rnps</span><span class="p">,</span>
-       <span class="n">decode</span><span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">262144</span><span class="p">),</span> <span class="mi">262144</span><span class="p">,</span> <span class="s1">&#39;NO&#39;</span><span class="p">,</span> <span class="s1">&#39;YES&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">wnps</span>
-  <span class="k">from</span> <span class="n">sys</span><span class="p">.</span><span class="n">procedureinfo$</span> <span class="n">pi</span>
+       <span class="n">decode</span><span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">524288</span><span class="p">),</span> <span class="mi">524288</span><span class="p">,</span> <span class="s1">'NO'</span><span class="p">,</span> <span class="s1">'YES'</span><span class="p">)</span> <span class="k">as</span> <span class="n">rnds</span><span class="p">,</span>
+       <span class="n">decode</span><span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">1048576</span><span class="p">),</span> <span class="mi">1048576</span><span class="p">,</span> <span class="s1">'NO'</span><span class="p">,</span> <span class="s1">'YES'</span><span class="p">)</span> <span class="k">as</span> <span class="n">wnds</span><span class="p">,</span>
+       <span class="n">decode</span><span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">131072</span><span class="p">),</span> <span class="mi">131072</span><span class="p">,</span> <span class="s1">'NO'</span><span class="p">,</span> <span class="s1">'YES'</span><span class="p">)</span> <span class="k">as</span> <span class="n">rnps</span><span class="p">,</span>
+       <span class="n">decode</span><span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">262144</span><span class="p">),</span> <span class="mi">262144</span><span class="p">,</span> <span class="s1">'NO'</span><span class="p">,</span> <span class="s1">'YES'</span><span class="p">)</span> <span class="k">as</span> <span class="n">wnps</span>
+  <span class="k">from</span> <span class="n">sys</span><span class="p">.</span><span class="n">procedureinfo</span><span class="err">$</span> <span class="n">pi</span>
   <span class="k">join</span> <span class="n">dba_objects</span> <span class="n">o</span>
     <span class="k">on</span> <span class="p">(</span><span class="n">o</span><span class="p">.</span><span class="n">OBJECT_ID</span> <span class="o">=</span> <span class="n">pi</span><span class="p">.</span><span class="n">obj</span><span class="o">#</span><span class="p">);</span></code></pre></figure>
 
 <p>So to finally find out if your function can be used in PDML statements, the following query can be used:</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="n">o</span><span class="p">.</span><span class="n">OBJECT_NAME</span><span class="p">,</span> <span class="n">pi</span><span class="p">.</span><span class="n">procedurename</span>
-  <span class="k">from</span> <span class="n">sys</span><span class="p">.</span><span class="n">procedureinfo$</span> <span class="n">pi</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">select</span> <span class="n">o</span><span class="p">.</span><span class="n">OBJECT_NAME</span><span class="p">,</span> <span class="n">pi</span><span class="p">.</span><span class="n">procedurename</span>
+  <span class="k">from</span> <span class="n">sys</span><span class="p">.</span><span class="n">procedureinfo</span><span class="err">$</span> <span class="n">pi</span>
   <span class="k">join</span> <span class="n">dba_objects</span> <span class="n">o</span> <span class="k">on</span> <span class="p">(</span><span class="n">o</span><span class="p">.</span><span class="n">OBJECT_ID</span> <span class="o">=</span> <span class="n">pi</span><span class="p">.</span><span class="n">obj</span><span class="o">#</span><span class="p">)</span>
   <span class="k">join</span> <span class="n">dba_procedures</span> <span class="n">p</span> <span class="k">on</span> <span class="p">(</span><span class="n">o</span><span class="p">.</span><span class="k">OWNER</span> <span class="o">=</span> <span class="n">p</span><span class="p">.</span><span class="k">OWNER</span>
     <span class="k">and</span> <span class="n">o</span><span class="p">.</span><span class="n">OBJECT_NAME</span> <span class="o">=</span> <span class="n">p</span><span class="p">.</span><span class="n">OBJECT_NAME</span>
     <span class="k">and</span> <span class="n">pi</span><span class="p">.</span><span class="n">procedurename</span> <span class="o">=</span> <span class="n">p</span><span class="p">.</span><span class="n">PROCEDURE_NAME</span><span class="p">)</span>
- <span class="k">where</span> <span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">PARALLEL</span> <span class="o">=</span> <span class="s1">&#39;YES&#39;</span> 
+ <span class="k">where</span> <span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">PARALLEL</span> <span class="o">=</span> <span class="s1">'YES'</span> 
    <span class="k">or</span> <span class="p">(</span><span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">8388608</span><span class="p">)</span> <span class="o">&lt;&gt;</span> <span class="mi">8388608</span> <span class="k">and</span>
        <span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">524288</span><span class="p">)</span> <span class="o">&lt;&gt;</span> <span class="mi">524288</span> <span class="k">and</span>
        <span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">1048576</span><span class="p">)</span> <span class="o">&lt;&gt;</span> <span class="mi">1048576</span> <span class="k">and</span>
        <span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">131072</span><span class="p">)</span> <span class="o">&lt;&gt;</span> <span class="mi">131072</span> <span class="k">and</span>
        <span class="n">bitand</span><span class="p">(</span><span class="n">pi</span><span class="p">.</span><span class="n">properties</span><span class="p">,</span> <span class="mi">262144</span><span class="p">)</span> <span class="o">&lt;&gt;</span> <span class="mi">262144</span><span class="p">))</span>
-   <span class="k">and</span> <span class="n">p</span><span class="p">.</span><span class="n">OBJECT_NAME</span> <span class="o">=</span> <span class="s1">&#39;&amp;packageName&#39;</span>
-   <span class="k">and</span> <span class="n">p</span><span class="p">.</span><span class="n">PROCEDURE_NAME</span> <span class="o">=</span> <span class="s1">&#39;&amp;procedureName&#39;</span><span class="p">;</span></code></pre></figure>
+   <span class="k">and</span> <span class="n">p</span><span class="p">.</span><span class="n">OBJECT_NAME</span> <span class="o">=</span> <span class="s1">'&amp;packageName'</span>
+   <span class="k">and</span> <span class="n">p</span><span class="p">.</span><span class="n">PROCEDURE_NAME</span> <span class="o">=</span> <span class="s1">'&amp;procedureName'</span><span class="p">;</span></code></pre></figure>
 
 <h1 id="conclusion">Conclusion</h1>
 
@@ -189,9 +189,9 @@
 
 <p><strong>Example:</strong></p>
 
-<p>We had a DML statement which was using <code>UTL_I18N.STRING_TO_RAW</code>. This function is neither parallel enabled nor does it have the required pragma <code>RESTRICT_REFERENCES</code>. Therefore no PDML was performed.</p>
+<p>We had a DML statement which was using <code class="highlighter-rouge">UTL_I18N.STRING_TO_RAW</code>. This function is neither parallel enabled nor does it have the required pragma <code class="highlighter-rouge">RESTRICT_REFERENCES</code>. Therefore no PDML was performed.</p>
 
-<p>We simply changed the statement to use <code>UTL_RAW.CAST_TO_RAW</code> instead, which has the pragma <code>RESTRICT_REFERENCE</code> required for PDML.</p>
+<p>We simply changed the statement to use <code class="highlighter-rouge">UTL_RAW.CAST_TO_RAW</code> instead, which has the pragma <code class="highlighter-rouge">RESTRICT_REFERENCE</code> required for PDML.</p>
 
 <p>Of course these two functions do not provide the exact same functionality, but in our case (destination charset was the same as database charset) we were able to swap them without risk.</p>
 

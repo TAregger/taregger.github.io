@@ -39,7 +39,7 @@
 
   <!-- Begin Jekyll SEO tag v2.6.1 -->
 <title>PL/SQL Package Types in JDBC | blog.aregger.io</title>
-<meta name="generator" content="Jekyll v3.8.6" />
+<meta name="generator" content="Jekyll v4.0.0" />
 <meta property="og:title" content="PL/SQL Package Types in JDBC" />
 <meta name="author" content="Thomas Aregger" />
 <meta property="og:locale" content="en_US" />
@@ -57,7 +57,7 @@
 <meta name="twitter:site" content="@taregger" />
 <meta name="twitter:creator" content="@taregger" />
 <script type="application/ld+json">
-{"datePublished":"2019-08-07T00:00:00+02:00","image":"https://blog.aregger.io/public/twitter_default_card.png","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/2019/08/07/plsql_package_types_in_jdbc/"},"url":"https://blog.aregger.io/2019/08/07/plsql_package_types_in_jdbc/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"Let’s suppose you have the following PL/SQL package source: create or replace package my_pkg is type t_varchar2_300 is table of varchar2(200); end; /","headline":"PL/SQL Package Types in JDBC","dateModified":"2019-08-07T00:00:00+02:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+{"image":"https://blog.aregger.io/public/twitter_default_card.png","author":{"@type":"Person","name":"Thomas Aregger"},"url":"https://blog.aregger.io/2019/08/07/plsql_package_types_in_jdbc/","headline":"PL/SQL Package Types in JDBC","dateModified":"2019-08-07T00:00:00+02:00","datePublished":"2019-08-07T00:00:00+02:00","description":"Let’s suppose you have the following PL/SQL package source: create or replace package my_pkg is type t_varchar2_300 is table of varchar2(200); end; /","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/2019/08/07/plsql_package_types_in_jdbc/"},"@type":"BlogPosting","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -129,7 +129,7 @@
     </div>
 
     <!-- 
-    <p>&copy; 2019. All rights reserved.</p>
+    <p>&copy; 2020. All rights reserved.</p>
     -->
   </div>
 </div>
@@ -141,26 +141,26 @@
   <span class="post-date">07 Aug 2019</span>
   <p>Let’s suppose you have the following PL/SQL package source:</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">create</span> <span class="k">or</span> <span class="k">replace</span> <span class="n">package</span> <span class="n">my_pkg</span> <span class="k">is</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">create</span> <span class="k">or</span> <span class="k">replace</span> <span class="n">package</span> <span class="n">my_pkg</span> <span class="k">is</span>
    <span class="k">type</span> <span class="n">t_varchar2_300</span> <span class="k">is</span> <span class="k">table</span> <span class="k">of</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">200</span><span class="p">);</span>
 <span class="k">end</span><span class="p">;</span>
 <span class="o">/</span></code></pre></figure>
 
-<p>In older versions of Oracle if you tried to use the type <code>t_varchar2_300</code> in Java you got an exception.</p>
+<p>In older versions of Oracle if you tried to use the type <code class="highlighter-rouge">t_varchar2_300</code> in Java you got an exception.</p>
 
-<figure class="highlight"><pre><code class="language-java" data-lang="java"><span></span><span class="n">Array</span> <span class="n">myArray</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">createOracleArray</span><span class="o">(</span><span class="s">&quot;MY_PKG.T_VARCHAR2_300&quot;</span><span class="o">,</span>
-  <span class="k">new</span> <span class="n">String</span><span class="o">[]{</span><span class="s">&quot;X&quot;</span><span class="o">,</span> <span class="s">&quot;Y&quot;</span><span class="o">});</span>
+<figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="nc">Array</span> <span class="n">myArray</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">createOracleArray</span><span class="o">(</span><span class="s">"MY_PKG.T_VARCHAR2_300"</span><span class="o">,</span>
+  <span class="k">new</span> <span class="nc">String</span><span class="o">[]{</span><span class="s">"X"</span><span class="o">,</span> <span class="s">"Y"</span><span class="o">});</span>
 
-<span class="n">var</span> <span class="n">stmt</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">prepareStatement</span><span class="o">(</span><span class="s">&quot;select ...&quot;</span><span class="o">);</span>
+<span class="kt">var</span> <span class="n">stmt</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">prepareStatement</span><span class="o">(</span><span class="s">"select ..."</span><span class="o">);</span>
 <span class="n">stmt</span><span class="o">.</span><span class="na">setArray</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">myArray</span><span class="o">);</span>
 
 <span class="n">stmt</span><span class="o">.</span><span class="na">executeQuery</span><span class="o">();</span></code></pre></figure>
 
-<p>This would throw <code>java.sql.SQLException: invalid name pattern: MY_PKG.T_VARCHAR2_300</code>.</p>
+<p>This would throw <code class="highlighter-rouge">java.sql.SQLException: invalid name pattern: MY_PKG.T_VARCHAR2_300</code>.</p>
 
 <p>Until Oracle 12.1 types declared in PL/SQL packages were not supported via JDBC and you had to create a standalone type:</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">create</span> <span class="k">type</span> <span class="n">t_varchar2_300</span> <span class="k">is</span> <span class="k">table</span> <span class="k">of</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">200</span><span class="p">);</span></code></pre></figure>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">create</span> <span class="k">type</span> <span class="n">t_varchar2_300</span> <span class="k">is</span> <span class="k">table</span> <span class="k">of</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">200</span><span class="p">);</span></code></pre></figure>
 
 <p>Luckily with 12.1 you can now use types declared in PL/SQL. Both the database and the JDBC driver need to be 12.1 or newer.</p>
 
@@ -168,37 +168,37 @@
 
 <p>For the sake of completeness here’s the full example code:</p>
 
-<figure class="highlight"><pre><code class="language-java" data-lang="java"><span></span><span class="kd">public</span> <span class="kd">class</span> <span class="nc">PlsqlPackageTypes</span> <span class="o">{</span>
+<figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="kd">public</span> <span class="kd">class</span> <span class="nc">PlsqlPackageTypes</span> <span class="o">{</span>
 
-  <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">String</span> <span class="n">CONNECTION_STRING</span> <span class="o">=</span> 
-      <span class="s">&quot;jdbc:oracle:thin:scott/tiger@oracle-database-183:1521/orcl1803&quot;</span><span class="o">;</span>
+  <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="nc">String</span> <span class="no">CONNECTION_STRING</span> <span class="o">=</span> 
+      <span class="s">"jdbc:oracle:thin:scott/tiger@oracle-database-183:1521/orcl1803"</span><span class="o">;</span>
 
-  <span class="kd">private</span> <span class="kd">static</span> <span class="n">String</span> <span class="n">SQL</span> <span class="o">=</span> <span class="s">&quot;select * from (&quot;</span>
-      <span class="o">+</span> <span class="s">&quot; select &#39;X&#39; as xyz from dual &quot;</span>
-      <span class="o">+</span> <span class="s">&quot; union all select &#39;Y&#39; from dual&quot;</span>
-      <span class="o">+</span> <span class="s">&quot; union all select &#39;Z&#39; from dual) &quot;</span>
-      <span class="o">+</span> <span class="s">&quot;where xyz in (select column_value from table(?))&quot;</span><span class="o">;</span>
+  <span class="kd">private</span> <span class="kd">static</span> <span class="nc">String</span> <span class="no">SQL</span> <span class="o">=</span> <span class="s">"select * from ("</span>
+      <span class="o">+</span> <span class="s">" select 'X' as xyz from dual "</span>
+      <span class="o">+</span> <span class="s">" union all select 'Y' from dual"</span>
+      <span class="o">+</span> <span class="s">" union all select 'Z' from dual) "</span>
+      <span class="o">+</span> <span class="s">"where xyz in (select column_value from table(?))"</span><span class="o">;</span>
 
-  <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">SQLException</span> <span class="o">{</span>
-    <span class="n">OracleConnection</span> <span class="n">connection</span> <span class="o">=</span>
-        <span class="o">(</span><span class="n">OracleConnection</span><span class="o">)</span> <span class="n">DriverManager</span><span class="o">.</span><span class="na">getConnection</span><span class="o">(</span><span class="n">CONNECTION_STRING</span><span class="o">);</span>
-    <span class="n">Array</span> <span class="n">myArray</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">createOracleArray</span><span class="o">(</span><span class="s">&quot;MY_PKG.T_VARCHAR2_300&quot;</span><span class="o">,</span> 
-        <span class="k">new</span> <span class="n">String</span><span class="o">[]{</span><span class="s">&quot;X&quot;</span><span class="o">,</span> <span class="s">&quot;Z&quot;</span><span class="o">});</span>
+  <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="nc">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="nc">SQLException</span> <span class="o">{</span>
+    <span class="nc">OracleConnection</span> <span class="n">connection</span> <span class="o">=</span>
+        <span class="o">(</span><span class="nc">OracleConnection</span><span class="o">)</span> <span class="nc">DriverManager</span><span class="o">.</span><span class="na">getConnection</span><span class="o">(</span><span class="no">CONNECTION_STRING</span><span class="o">);</span>
+    <span class="nc">Array</span> <span class="n">myArray</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">createOracleArray</span><span class="o">(</span><span class="s">"MY_PKG.T_VARCHAR2_300"</span><span class="o">,</span> 
+        <span class="k">new</span> <span class="nc">String</span><span class="o">[]{</span><span class="s">"X"</span><span class="o">,</span> <span class="s">"Z"</span><span class="o">});</span>
 
-    <span class="n">var</span> <span class="n">stmt</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">prepareStatement</span><span class="o">(</span><span class="n">SQL</span><span class="o">);</span>
+    <span class="kt">var</span> <span class="n">stmt</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">prepareStatement</span><span class="o">(</span><span class="no">SQL</span><span class="o">);</span>
     <span class="n">stmt</span><span class="o">.</span><span class="na">setArray</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">myArray</span><span class="o">);</span>
 
-    <span class="n">ResultSet</span> <span class="n">rs</span> <span class="o">=</span> <span class="n">stmt</span><span class="o">.</span><span class="na">executeQuery</span><span class="o">();</span>
+    <span class="nc">ResultSet</span> <span class="n">rs</span> <span class="o">=</span> <span class="n">stmt</span><span class="o">.</span><span class="na">executeQuery</span><span class="o">();</span>
     <span class="k">while</span><span class="o">(</span><span class="n">rs</span><span class="o">.</span><span class="na">next</span><span class="o">())</span> <span class="o">{</span>
-      <span class="n">String</span> <span class="n">xyz</span> <span class="o">=</span> <span class="n">rs</span><span class="o">.</span><span class="na">getString</span><span class="o">(</span><span class="s">&quot;XYZ&quot;</span><span class="o">);</span>
-      <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="n">xyz</span><span class="o">);</span>
+      <span class="nc">String</span> <span class="n">xyz</span> <span class="o">=</span> <span class="n">rs</span><span class="o">.</span><span class="na">getString</span><span class="o">(</span><span class="s">"XYZ"</span><span class="o">);</span>
+      <span class="nc">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="n">xyz</span><span class="o">);</span>
     <span class="o">}</span>
   <span class="o">}</span>
 <span class="o">}</span></code></pre></figure>
 
 <p>Other examples can be found in the <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/jjdbc/JDBC-reference-information.html#GUID-E77C2AE8-E22B-48BF-A4CB-010CBC8FE7C2">Oracle JDBC Guide</a>.</p>
 
-<p>Unfortunately, package types still only work in <code>SELECT</code> statements and cannot be used in DML. This is a general limitation in Oracle and is not specific to JDBC.</p>
+<p>Unfortunately, package types still only work in <code class="highlighter-rouge">SELECT</code> statements and cannot be used in DML. This is a general limitation in Oracle and is not specific to JDBC.</p>
 
 
 </div>

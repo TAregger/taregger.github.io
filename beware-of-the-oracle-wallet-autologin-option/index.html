@@ -39,7 +39,7 @@
 
   <!-- Begin Jekyll SEO tag v2.6.1 -->
 <title>Beware of the Oracle wallet autologin option | blog.aregger.io</title>
-<meta name="generator" content="Jekyll v3.8.6" />
+<meta name="generator" content="Jekyll v4.0.0" />
 <meta property="og:title" content="Beware of the Oracle wallet autologin option" />
 <meta name="author" content="Thomas Aregger" />
 <meta property="og:locale" content="en_US" />
@@ -55,7 +55,7 @@
 <meta name="twitter:site" content="@taregger" />
 <meta name="twitter:creator" content="@taregger" />
 <script type="application/ld+json">
-{"datePublished":"2016-05-18T00:10:20+02:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/beware-of-the-oracle-wallet-autologin-option/"},"url":"https://blog.aregger.io/beware-of-the-oracle-wallet-autologin-option/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"Oracle Wallets are used to store your database passwords in encrypted format. This is useful for application servers when you don’t want to store your passwords in cleartext. A wallet password protects the wallet from reading and modification of entries. Each time your application needs to open a database connection it has to access the wallet, which requires entry of the wallet password. If you want your application to be able to read the database passwords from the wallet without entry of the wallet password, you can create it with the autologin option (so called SSO wallets).","headline":"Beware of the Oracle wallet autologin option","dateModified":"2016-05-18T00:10:20+02:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+{"author":{"@type":"Person","name":"Thomas Aregger"},"url":"https://blog.aregger.io/beware-of-the-oracle-wallet-autologin-option/","headline":"Beware of the Oracle wallet autologin option","dateModified":"2016-05-18T00:10:20+02:00","datePublished":"2016-05-18T00:10:20+02:00","description":"Oracle Wallets are used to store your database passwords in encrypted format. This is useful for application servers when you don’t want to store your passwords in cleartext. A wallet password protects the wallet from reading and modification of entries. Each time your application needs to open a database connection it has to access the wallet, which requires entry of the wallet password. If you want your application to be able to read the database passwords from the wallet without entry of the wallet password, you can create it with the autologin option (so called SSO wallets).","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/beware-of-the-oracle-wallet-autologin-option/"},"@type":"BlogPosting","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -127,7 +127,7 @@
     </div>
 
     <!-- 
-    <p>&copy; 2019. All rights reserved.</p>
+    <p>&copy; 2020. All rights reserved.</p>
     -->
   </div>
 </div>
@@ -145,30 +145,30 @@
 
 <h4 id="1-first-lets-create-a-wallet-with-a-sample-entry">1. First let’s create a wallet with a sample entry</h4>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>orapki wallet create -wallet /home/oracle/wallet -auto_login_local \
+<figure class="highlight"><pre><code class="language-text" data-lang="text">orapki wallet create -wallet /home/oracle/wallet -auto_login_local \
   -pwd myWalletPass16</code></pre></figure>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>mkstore -wrl /home/oracle/wallet -createCredential oraclelinux:1521:orcl121 \
+<figure class="highlight"><pre><code class="language-text" data-lang="text">mkstore -wrl /home/oracle/wallet -createCredential oraclelinux:1521:orcl121 \
   myUser myPass</code></pre></figure>
 
 <h4 id="2-write-a-trivial-java-class-to-open-a-database-connection">2. Write a trivial java class to open a database connection</h4>
 
-<figure class="highlight"><pre><code class="language-java" data-lang="java"><span></span><span class="kn">package</span> <span class="nn">io.aregger.wallet</span><span class="o">;</span>
+<figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="kn">package</span> <span class="nn">io.aregger.wallet</span><span class="o">;</span>
 <span class="kn">import</span> <span class="nn">java.sql.SQLException</span><span class="o">;</span>
 <span class="kn">import</span> <span class="nn">oracle.jdbc.pool.OracleDataSource</span><span class="o">;</span>
 
 <span class="kd">public</span> <span class="kd">class</span> <span class="nc">OpenWallet</span> <span class="o">{</span>
-	<span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">SQLException</span> <span class="o">{</span>
-		<span class="n">OracleDataSource</span> <span class="n">dataSource</span> <span class="o">=</span> <span class="k">new</span> <span class="n">OracleDataSource</span><span class="o">();</span>
-		<span class="c1">// put in a random url. host and instance don&#39;t need to exist</span>
-		<span class="n">dataSource</span><span class="o">.</span><span class="na">setURL</span><span class="o">(</span><span class="s">&quot;jdbc:oracle:thin:@foo:1521:bar&quot;</span><span class="o">);</span>
+	<span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="nc">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="nc">SQLException</span> <span class="o">{</span>
+		<span class="nc">OracleDataSource</span> <span class="n">dataSource</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">OracleDataSource</span><span class="o">();</span>
+		<span class="c1">// put in a random url. host and instance don't need to exist</span>
+		<span class="n">dataSource</span><span class="o">.</span><span class="na">setURL</span><span class="o">(</span><span class="s">"jdbc:oracle:thin:@foo:1521:bar"</span><span class="o">);</span>
 		<span class="n">dataSource</span><span class="o">.</span><span class="na">getConnection</span><span class="o">();</span>
 	<span class="o">}</span>
 <span class="o">}</span></code></pre></figure>
 
 <h4 id="3-after-compiling-the-class-start-it-with-java-debugger-jdb">3. After compiling the class, start it with Java Debugger (jdb)</h4>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>jdb -classpath \
+<figure class="highlight"><pre><code class="language-text" data-lang="text">jdb -classpath \
   lib/ojdbc7_g.jar:lib/oraclepki.jar:lib/osdt_cert.jar:lib/osdt_core.jar:./ \
   -Doracle.net.wallet_location=/home/oracle/wallet \
   io.aregger.wallet.OpenWallet</code></pre></figure>
@@ -179,39 +179,39 @@
 
 <h4 id="4-after-starting-the-program-with-jdb-a-breakpoint-can-be-set-and-the-program-execution-can-be-continued">4. After starting the program with jdb, a breakpoint can be set and the program execution can be continued</h4>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>&gt; stop at oracle.jdbc.driver.PhysicalConnection:1853
+<figure class="highlight"><pre><code class="language-text" data-lang="text">&gt; stop at oracle.jdbc.driver.PhysicalConnection:1853
 &gt; run</code></pre></figure>
 
 <p>The position of the breakpoint depends on the jdbc version. In this case 12.1.0.2 was used.</p>
 
 <p>Shortly after running the program, jdb should output the following:</p>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>Breakpoint hit: &quot;thread=main&quot;, oracle.jdbc.driver.PhysicalConnection.getSecretStoreCredentials(), line=1,853 bci=162</code></pre></figure>
+<figure class="highlight"><pre><code class="language-text" data-lang="text">Breakpoint hit: "thread=main", oracle.jdbc.driver.PhysicalConnection.getSecretStoreCredentials(), line=1,853 bci=162</code></pre></figure>
 
 <p>This is the point where you have access to all the entries in the wallet in cleartext</p>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>main[1] print secretStore.b.d.entrySet()
- secretStore.b.d.entrySet() = &quot;[oracle.security.client.password1=oracle.security.pki.r@74751b3,
+<figure class="highlight"><pre><code class="language-text" data-lang="text">main[1] print secretStore.b.d.entrySet()
+ secretStore.b.d.entrySet() = "[oracle.security.client.password1=oracle.security.pki.r@74751b3,
                                 oracle.security.client.username1=oracle.security.pki.r@741a8937,
-                                oracle.security.client.connect_string1=oracle.security.pki.r@306e95ec]&quot;</code></pre></figure>
+                                oracle.security.client.connect_string1=oracle.security.pki.r@306e95ec]"</code></pre></figure>
 
 <p>Dump the password</p>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>main[1] dump secretStore.b.d.entrySet().toArray()[0].getValue().a
+<figure class="highlight"><pre><code class="language-text" data-lang="text">main[1] dump secretStore.b.d.entrySet().toArray()[0].getValue().a
  secretStore.b.d.entrySet().toArray()[0].getValue().a = {
 m, y, P, a, s, s
 }</code></pre></figure>
 
 <p>Dump the username</p>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>main[1] dump secretStore.b.d.entrySet().toArray()[1].getValue().a
+<figure class="highlight"><pre><code class="language-text" data-lang="text">main[1] dump secretStore.b.d.entrySet().toArray()[1].getValue().a
  secretStore.b.d.entrySet().toArray()[1].getValue().a = {
 m, y, U, s, e, r
 }</code></pre></figure>
 
 <p>Dump the connection string</p>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>main[1] dump secretStore.b.d.entrySet().toArray()[2].getValue().a
+<figure class="highlight"><pre><code class="language-text" data-lang="text">main[1] dump secretStore.b.d.entrySet().toArray()[2].getValue().a
  secretStore.b.d.entrySet().toArray()[2].getValue().a = {
 o, r, a, c, l, e, l, i, n, u, x, :, 1, 5, 2, 1, :, o, r, c, l, 1, 2, 1
 }</code></pre></figure>
@@ -225,7 +225,7 @@ o, r, a, c, l, e, l, i, n, u, x, :, 1, 5, 2, 1, :, o, r, c, l, 1, 2, 1
 <ol>
   <li>Restrict filesystem access to your wallet (this should be obvious).</li>
   <li>If possible don’t use the autologin option. This means you have to manually enter a password each time you want to start your application, which is often not feasible.</li>
-  <li>If you really have to use a SSO wallet, create it with the <code>-auto_login_local</code> option, so it cannot be used after copying to other machines.</li>
+  <li>If you really have to use a SSO wallet, create it with the <code class="highlighter-rouge">-auto_login_local</code> option, so it cannot be used after copying to other machines.</li>
   <li>Prevent your application user to connect from other hosts than the application server.</li>
 </ol>
 

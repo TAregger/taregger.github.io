@@ -39,7 +39,7 @@
 
   <!-- Begin Jekyll SEO tag v2.6.1 -->
 <title>Loading data into index organized tables | blog.aregger.io</title>
-<meta name="generator" content="Jekyll v3.8.6" />
+<meta name="generator" content="Jekyll v4.0.0" />
 <meta property="og:title" content="Loading data into index organized tables" />
 <meta name="author" content="Thomas Aregger" />
 <meta property="og:locale" content="en_US" />
@@ -55,7 +55,7 @@
 <meta name="twitter:site" content="@taregger" />
 <meta name="twitter:creator" content="@taregger" />
 <script type="application/ld+json">
-{"datePublished":"2016-06-19T16:48:02+02:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/loading-data-iots/"},"url":"https://blog.aregger.io/loading-data-iots/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"Most of the time you don’t have full control of how your data gets loaded into the database, because it is often imposed by business rules. But in the case you have full control, you should take advantage of it.","headline":"Loading data into index organized tables","dateModified":"2016-06-19T16:48:02+02:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+{"author":{"@type":"Person","name":"Thomas Aregger"},"url":"https://blog.aregger.io/loading-data-iots/","headline":"Loading data into index organized tables","dateModified":"2016-06-19T16:48:02+02:00","datePublished":"2016-06-19T16:48:02+02:00","description":"Most of the time you don’t have full control of how your data gets loaded into the database, because it is often imposed by business rules. But in the case you have full control, you should take advantage of it.","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/loading-data-iots/"},"@type":"BlogPosting","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -127,7 +127,7 @@
     </div>
 
     <!-- 
-    <p>&copy; 2019. All rights reserved.</p>
+    <p>&copy; 2020. All rights reserved.</p>
     -->
   </div>
 </div>
@@ -151,22 +151,22 @@
 
 <p>The c1 column will be the pk column of the later created IOT. I used a random function so the values for this column are not ordered in any way.</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">create</span> <span class="k">table</span> <span class="n">t_heap</span> <span class="p">(</span><span class="n">c1</span> <span class="nb">number</span><span class="p">,</span> <span class="n">c2</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">100</span><span class="p">));</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">create</span> <span class="k">table</span> <span class="n">t_heap</span> <span class="p">(</span><span class="n">c1</span> <span class="n">number</span><span class="p">,</span> <span class="n">c2</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">100</span><span class="p">));</span>
 
 <span class="k">INSERT</span> <span class="k">INTO</span> <span class="n">t_heap</span>
-<span class="k">SELECT</span> <span class="n">dbms_random</span><span class="p">.</span><span class="n">random</span><span class="p">,</span> <span class="n">lpad</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span><span class="s1">&#39;#&#39;</span><span class="p">)</span>
+<span class="k">SELECT</span> <span class="n">dbms_random</span><span class="p">.</span><span class="n">random</span><span class="p">,</span> <span class="n">lpad</span><span class="p">(</span><span class="s1">'#'</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span><span class="s1">'#'</span><span class="p">)</span>
 <span class="k">FROM</span> <span class="n">dual</span> <span class="k">CONNECT</span> <span class="k">BY</span> <span class="n">rownum</span> <span class="o">&lt;=</span> <span class="mi">100000</span><span class="p">;</span></code></pre></figure>
 
 <p>Remove any duplicate values for c1 as this would lead to unique constraint violations later.</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">declare</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">declare</span>
  <span class="n">lastValue</span> <span class="n">t_heap</span><span class="p">.</span><span class="n">c1</span><span class="o">%</span><span class="k">type</span><span class="p">;</span>
  <span class="k">cursor</span> <span class="n">c_heap</span> <span class="k">is</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t_heap</span> <span class="k">order</span> <span class="k">by</span> <span class="n">c1</span> <span class="k">for</span> <span class="k">update</span><span class="p">;</span>
 <span class="k">begin</span>
   <span class="k">for</span> <span class="n">rec</span> <span class="k">in</span> <span class="n">c_heap</span> <span class="n">loop</span>
-    <span class="k">if</span> <span class="n">rec</span><span class="p">.</span><span class="n">c1</span> <span class="o">=</span> <span class="n">lastValue</span> <span class="k">then</span>
+    <span class="n">if</span> <span class="n">rec</span><span class="p">.</span><span class="n">c1</span> <span class="o">=</span> <span class="n">lastValue</span> <span class="k">then</span>
       <span class="k">delete</span> <span class="k">from</span> <span class="n">t_heap</span> <span class="k">where</span> <span class="k">current</span> <span class="k">of</span> <span class="n">c_heap</span><span class="p">;</span>
-    <span class="k">end</span> <span class="k">if</span><span class="p">;</span>
+    <span class="k">end</span> <span class="n">if</span><span class="p">;</span>
   <span class="n">lastValue</span> <span class="p">:</span><span class="o">=</span> <span class="n">rec</span><span class="p">.</span><span class="n">c1</span><span class="p">;</span>
   <span class="k">end</span> <span class="n">loop</span><span class="p">;</span>
 <span class="k">end</span><span class="p">;</span>
@@ -176,15 +176,15 @@
 
 <h4 id="create-the-iot">Create the IOT</h4>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">create</span> <span class="k">table</span> <span class="n">t_iot</span> <span class="p">(</span><span class="n">c1</span> <span class="nb">number</span><span class="p">,</span> <span class="n">c2</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">create</span> <span class="k">table</span> <span class="n">t_iot</span> <span class="p">(</span><span class="n">c1</span> <span class="n">number</span><span class="p">,</span> <span class="n">c2</span> <span class="n">varchar2</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
  <span class="k">constraint</span> <span class="n">pk_iot</span> <span class="k">primary</span> <span class="k">key</span> <span class="p">(</span><span class="n">c1</span><span class="p">))</span>
  <span class="n">organization</span> <span class="k">index</span><span class="p">;</span></code></pre></figure>
 
 <p>Check the index split statistics before inserting</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="n">n</span><span class="p">.</span><span class="n">name</span><span class="p">,</span><span class="n">s</span><span class="p">.</span><span class="n">value</span> <span class="k">from</span> <span class="n">v$mystat</span> <span class="n">s</span>
-<span class="k">join</span> <span class="n">v$statname</span> <span class="n">n</span> <span class="k">on</span> <span class="p">(</span><span class="n">s</span><span class="p">.</span><span class="n">statistic</span><span class="o">#</span> <span class="o">=</span> <span class="n">n</span><span class="p">.</span><span class="n">statistic</span><span class="o">#</span><span class="p">)</span>
-<span class="k">where</span> <span class="n">n</span><span class="p">.</span><span class="n">name</span> <span class="k">in</span> <span class="p">(</span><span class="s1">&#39;leaf node splits&#39;</span><span class="p">,</span> <span class="s1">&#39;leaf node 90-10 splits&#39;</span><span class="p">);</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">select</span> <span class="n">n</span><span class="p">.</span><span class="n">name</span><span class="p">,</span><span class="n">s</span><span class="p">.</span><span class="n">value</span> <span class="k">from</span> <span class="n">v</span><span class="err">$</span><span class="n">mystat</span> <span class="n">s</span>
+<span class="k">join</span> <span class="n">v</span><span class="err">$</span><span class="n">statname</span> <span class="n">n</span> <span class="k">on</span> <span class="p">(</span><span class="n">s</span><span class="p">.</span><span class="n">statistic</span><span class="o">#</span> <span class="o">=</span> <span class="n">n</span><span class="p">.</span><span class="n">statistic</span><span class="o">#</span><span class="p">)</span>
+<span class="k">where</span> <span class="n">n</span><span class="p">.</span><span class="n">name</span> <span class="k">in</span> <span class="p">(</span><span class="s1">'leaf node splits'</span><span class="p">,</span> <span class="s1">'leaf node 90-10 splits'</span><span class="p">);</span>
 
 <span class="n">NAME</span>                                                                  <span class="n">VALUE</span>
 <span class="c1">---------------------------------------------------------------- ----------</span>
@@ -193,7 +193,7 @@
 
 <h4 id="insert-without-order-by-clause">Insert without order by clause</h4>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">insert</span> <span class="k">into</span> <span class="n">t_iot</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t_heap</span><span class="p">;</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">insert</span> <span class="k">into</span> <span class="n">t_iot</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t_heap</span><span class="p">;</span>
 
 
 <span class="n">NAME</span>                                                                  <span class="n">VALUE</span>
@@ -201,7 +201,7 @@
 <span class="n">leaf</span> <span class="n">node</span> <span class="n">splits</span>                                                       <span class="mi">2908</span>
 <span class="n">leaf</span> <span class="n">node</span> <span class="mi">90</span><span class="o">-</span><span class="mi">10</span> <span class="n">splits</span>                                                    <span class="mi">0</span>
 
-<span class="k">select</span> <span class="n">bytes</span><span class="o">/</span><span class="mi">1024</span><span class="o">/</span><span class="mi">1024</span> <span class="k">from</span> <span class="n">dba_segments</span> <span class="k">where</span> <span class="n">segment_name</span><span class="o">=</span><span class="s1">&#39;PK_IOT&#39;</span><span class="p">;</span>
+<span class="k">select</span> <span class="n">bytes</span><span class="o">/</span><span class="mi">1024</span><span class="o">/</span><span class="mi">1024</span> <span class="k">from</span> <span class="n">dba_segments</span> <span class="k">where</span> <span class="n">segment_name</span><span class="o">=</span><span class="s1">'PK_IOT'</span><span class="p">;</span>
 
 <span class="n">BYTES</span><span class="o">/</span><span class="mi">1024</span><span class="o">/</span><span class="mi">1024</span>
 <span class="c1">---------------</span>
@@ -211,9 +211,9 @@
 
 <h4 id="now-insert-with-order-by-clause">Now insert with order by clause</h4>
 
-<p>(Open a new database session, so we have “fresh” counters in <code>v$mystat</code>)</p>
+<p>(Open a new database session, so we have “fresh” counters in <code class="highlighter-rouge">v$mystat</code>)</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">truncate</span> <span class="k">table</span> <span class="n">t_iot</span><span class="p">;</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">truncate</span> <span class="k">table</span> <span class="n">t_iot</span><span class="p">;</span>
 <span class="k">insert</span> <span class="k">into</span> <span class="n">t_iot</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t_heap</span> <span class="k">order</span> <span class="k">by</span> <span class="n">c1</span><span class="p">;</span>
 
 <span class="n">NAME</span>                                                                  <span class="n">VALUE</span>
@@ -221,7 +221,7 @@
 <span class="n">leaf</span> <span class="n">node</span> <span class="n">splits</span>                                                       <span class="mi">1458</span>
 <span class="n">leaf</span> <span class="n">node</span> <span class="mi">90</span><span class="o">-</span><span class="mi">10</span> <span class="n">splits</span>                                                 <span class="mi">1458</span>
 
-<span class="k">select</span> <span class="n">bytes</span><span class="o">/</span><span class="mi">1024</span><span class="o">/</span><span class="mi">1024</span> <span class="k">from</span> <span class="n">dba_segments</span> <span class="k">where</span> <span class="n">segment_name</span><span class="o">=</span><span class="s1">&#39;PK_IOT&#39;</span><span class="p">;</span>
+<span class="k">select</span> <span class="n">bytes</span><span class="o">/</span><span class="mi">1024</span><span class="o">/</span><span class="mi">1024</span> <span class="k">from</span> <span class="n">dba_segments</span> <span class="k">where</span> <span class="n">segment_name</span><span class="o">=</span><span class="s1">'PK_IOT'</span><span class="p">;</span>
 
 <span class="n">BYTES</span><span class="o">/</span><span class="mi">1024</span><span class="o">/</span><span class="mi">1024</span>
 <span class="c1">---------------</span>

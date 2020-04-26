@@ -39,7 +39,7 @@
 
   <!-- Begin Jekyll SEO tag v2.6.1 -->
 <title>Temporal Validity and “wrong” results | blog.aregger.io</title>
-<meta name="generator" content="Jekyll v3.8.6" />
+<meta name="generator" content="Jekyll v4.0.0" />
 <meta property="og:title" content="Temporal Validity and “wrong” results" />
 <meta name="author" content="Thomas Aregger" />
 <meta property="og:locale" content="en_US" />
@@ -55,7 +55,7 @@
 <meta name="twitter:site" content="@taregger" />
 <meta name="twitter:creator" content="@taregger" />
 <script type="application/ld+json">
-{"datePublished":"2017-01-10T00:13:01+01:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/temporal-validity-wrong-results/"},"url":"https://blog.aregger.io/temporal-validity-wrong-results/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"Temporal validity is a new feature in Oracle 12c. It makes querying effective date ranges much simpler. For more details refer to the Oracle documentation.","headline":"Temporal Validity and “wrong” results","dateModified":"2017-01-10T00:13:01+01:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+{"author":{"@type":"Person","name":"Thomas Aregger"},"url":"https://blog.aregger.io/temporal-validity-wrong-results/","headline":"Temporal Validity and “wrong” results","dateModified":"2017-01-10T00:13:01+01:00","datePublished":"2017-01-10T00:13:01+01:00","description":"Temporal validity is a new feature in Oracle 12c. It makes querying effective date ranges much simpler. For more details refer to the Oracle documentation.","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/temporal-validity-wrong-results/"},"@type":"BlogPosting","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -127,7 +127,7 @@
     </div>
 
     <!-- 
-    <p>&copy; 2019. All rights reserved.</p>
+    <p>&copy; 2020. All rights reserved.</p>
     -->
   </div>
 </div>
@@ -143,35 +143,35 @@
 
 <p>To demonstrate the situation let’s create a table with a time dimension and some records:</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">create</span> <span class="k">table</span> <span class="n">t1</span> <span class="p">(</span><span class="n">startdate</span> <span class="nb">date</span><span class="p">,</span> <span class="n">enddate</span> <span class="nb">date</span><span class="p">);</span> 
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">create</span> <span class="k">table</span> <span class="n">t1</span> <span class="p">(</span><span class="n">startdate</span> <span class="nb">date</span><span class="p">,</span> <span class="n">enddate</span> <span class="nb">date</span><span class="p">);</span> 
 <span class="k">alter</span> <span class="k">table</span> <span class="n">t1</span> <span class="k">add</span> <span class="n">period</span> <span class="k">for</span> <span class="n">t1period</span> <span class="p">(</span><span class="n">startdate</span><span class="p">,</span> <span class="n">enddate</span><span class="p">);</span> 
 
-<span class="k">insert</span> <span class="k">into</span> <span class="n">t1</span> <span class="k">values</span><span class="p">(</span><span class="k">null</span><span class="p">,</span> <span class="nb">date</span><span class="s1">&#39;2016-01-10&#39;</span><span class="p">);</span> 
-<span class="k">insert</span> <span class="k">into</span> <span class="n">t1</span> <span class="k">values</span><span class="p">(</span><span class="nb">date</span><span class="s1">&#39;2016-01-08&#39;</span><span class="p">,</span> <span class="k">null</span><span class="p">);</span> 
-<span class="k">insert</span> <span class="k">into</span> <span class="n">t1</span> <span class="k">values</span><span class="p">(</span><span class="nb">date</span><span class="s1">&#39;2016-01-08&#39;</span><span class="p">,</span> <span class="nb">date</span><span class="s1">&#39;2016-01-10&#39;</span><span class="p">);</span> 
+<span class="k">insert</span> <span class="k">into</span> <span class="n">t1</span> <span class="k">values</span><span class="p">(</span><span class="k">null</span><span class="p">,</span> <span class="nb">date</span><span class="s1">'2016-01-10'</span><span class="p">);</span> 
+<span class="k">insert</span> <span class="k">into</span> <span class="n">t1</span> <span class="k">values</span><span class="p">(</span><span class="nb">date</span><span class="s1">'2016-01-08'</span><span class="p">,</span> <span class="k">null</span><span class="p">);</span> 
+<span class="k">insert</span> <span class="k">into</span> <span class="n">t1</span> <span class="k">values</span><span class="p">(</span><span class="nb">date</span><span class="s1">'2016-01-08'</span><span class="p">,</span> <span class="nb">date</span><span class="s1">'2016-01-10'</span><span class="p">);</span> 
 
 <span class="k">commit</span><span class="p">;</span></code></pre></figure>
 
 <p>So if you want to get the records from table T1 which are effective as of the day after tomorrow you can query it with the following select:</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">as</span> <span class="k">of</span> <span class="n">period</span> <span class="k">for</span> <span class="n">t1period</span> <span class="nb">date</span><span class="s1">&#39;2016-01-11&#39;</span><span class="p">;</span></code></pre></figure>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">as</span> <span class="k">of</span> <span class="n">period</span> <span class="k">for</span> <span class="n">t1period</span> <span class="nb">date</span><span class="s1">'2016-01-11'</span><span class="p">;</span></code></pre></figure>
 
 <p>The returned result is as expected</p>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>STARTDATE           ENDDATE
+<figure class="highlight"><pre><code class="language-text" data-lang="text">STARTDATE           ENDDATE
 ------------------- -------------------
 2016-01-08 00:00:00</code></pre></figure>
 
 <p>So what happens if you use a nonexistent time dimension:</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">as</span> <span class="k">of</span> <span class="n">period</span> <span class="k">for</span> <span class="n">t2period</span> <span class="n">sysdate</span><span class="o">+</span><span class="mi">2</span><span class="p">;</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">as</span> <span class="k">of</span> <span class="n">period</span> <span class="k">for</span> <span class="n">t2period</span> <span class="n">sysdate</span><span class="o">+</span><span class="mi">2</span><span class="p">;</span>
               <span class="o">*</span>
 <span class="n">ERROR</span> <span class="k">at</span> <span class="n">line</span> <span class="mi">1</span><span class="p">:</span>
-<span class="n">ORA</span><span class="o">-</span><span class="mi">55603</span><span class="p">:</span> <span class="n">invalid</span> <span class="n">flashback</span> <span class="n">archive</span> <span class="k">or</span> <span class="k">valid</span> <span class="n">time</span> <span class="n">period</span> <span class="n">command</span></code></pre></figure>
+<span class="n">ORA</span><span class="o">-</span><span class="mi">55603</span><span class="p">:</span> <span class="n">invalid</span> <span class="n">flashback</span> <span class="n">archive</span> <span class="k">or</span> <span class="k">valid</span> <span class="nb">time</span> <span class="n">period</span> <span class="n">command</span></code></pre></figure>
 
 <p>You get an error, which is also the expected behaviour. But what happens when you delete the only existing time dimension on the table and query the table again.</p>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">alter</span> <span class="k">table</span> <span class="n">t1</span> <span class="k">drop</span> <span class="p">(</span><span class="n">period</span> <span class="k">for</span> <span class="n">t1period</span><span class="p">);</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">alter</span> <span class="k">table</span> <span class="n">t1</span> <span class="k">drop</span> <span class="p">(</span><span class="n">period</span> <span class="k">for</span> <span class="n">t1period</span><span class="p">);</span>
 
 <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">t1</span> <span class="k">as</span> <span class="k">of</span> <span class="n">period</span> <span class="k">for</span> <span class="n">t2period</span> <span class="n">sysdate</span><span class="o">+</span><span class="mi">2</span><span class="p">;</span>
 
@@ -186,7 +186,7 @@
 <p>In my opinion the correct behaviour in this situation would be returning an error, as it is the case when you have an already existing time dimension on the table but use a non-existing one in the query. I already filed a bug in MOS to ask whether this is a bug or a design decision and I will keep this post updated on the outcome.</p>
 
 <h3 id="update-2019-01-17">Update 2019-01-17</h3>
-<p>This bug has finally been fixed in version 19.1. Oracle now correctly reports <code>ORA-55603: invalid flashback archive or valid time period command</code> when there is no time dimension on the table.</p>
+<p>This bug has finally been fixed in version 19.1. Oracle now correctly reports <code class="highlighter-rouge">ORA-55603: invalid flashback archive or valid time period command</code> when there is no time dimension on the table.</p>
 
 </div>
 

@@ -39,7 +39,7 @@
 
   <!-- Begin Jekyll SEO tag v2.6.1 -->
 <title>Simulating network latency on Linux | blog.aregger.io</title>
-<meta name="generator" content="Jekyll v3.8.6" />
+<meta name="generator" content="Jekyll v4.0.0" />
 <meta property="og:title" content="Simulating network latency on Linux" />
 <meta name="author" content="Thomas Aregger" />
 <meta property="og:locale" content="en_US" />
@@ -57,7 +57,7 @@
 <meta name="twitter:site" content="@taregger" />
 <meta name="twitter:creator" content="@taregger" />
 <script type="application/ld+json">
-{"datePublished":"2018-12-16T00:00:00+01:00","image":"https://blog.aregger.io/assets/2018-12-16-simulating-network-latency-linux/thumbnail.png","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/simulating-network-latency-linux/"},"url":"https://blog.aregger.io/simulating-network-latency-linux/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"If you want to run test cases that are sensitive to network latency, it’s important to also test them under the effect of different latencies. For example you want to know what it means if you move an application currently running on the same server as the database to a different server. Or you are doing some small tests locally on your computer and want to know how they would behave in a real environment where client and server are on different machines, maybe even with long geographical distances between them.","headline":"Simulating network latency on Linux","dateModified":"2018-12-16T00:00:00+01:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+{"image":"https://blog.aregger.io/assets/2018-12-16-simulating-network-latency-linux/thumbnail.png","author":{"@type":"Person","name":"Thomas Aregger"},"url":"https://blog.aregger.io/simulating-network-latency-linux/","headline":"Simulating network latency on Linux","dateModified":"2018-12-16T00:00:00+01:00","datePublished":"2018-12-16T00:00:00+01:00","description":"If you want to run test cases that are sensitive to network latency, it’s important to also test them under the effect of different latencies. For example you want to know what it means if you move an application currently running on the same server as the database to a different server. Or you are doing some small tests locally on your computer and want to know how they would behave in a real environment where client and server are on different machines, maybe even with long geographical distances between them.","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/simulating-network-latency-linux/"},"@type":"BlogPosting","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -129,7 +129,7 @@
     </div>
 
     <!-- 
-    <p>&copy; 2019. All rights reserved.</p>
+    <p>&copy; 2020. All rights reserved.</p>
     -->
   </div>
 </div>
@@ -146,39 +146,39 @@ For example you want to know what it means if you move an application currently 
 
 <p>Linux provides a kernel module called NetEm (Network Emulator). With NetEm you can add a delay to all packages leaving (outgoing) a certain network interface. You can do a lot more things with NetEm like duplicating, corrupting or reordering packages and more. Check the man page or the links at the end of this post to find out more about it.</p>
 
-<p>NetEm is an enhancement of the Linux traffic control facilities and can therefore be controlled with <code>tc</code>.</p>
+<p>NetEm is an enhancement of the Linux traffic control facilities and can therefore be controlled with <code class="highlighter-rouge">tc</code>.</p>
 
 <h2 id="using-the-tc-command-line-tool-to-add-a-delay">Using the tc command line tool to add a delay</h2>
 
 <p>Add a delay of 10ms to eth1</p>
-<pre><code>tc qdisc add dev eth1 root netem delay 10ms
-</code></pre>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tc qdisc add dev eth1 root netem delay 10ms
+</code></pre></div></div>
 
 <p>Change an already configured delay</p>
-<pre><code>tc qdisc change dev eth1 root netem delay 5ms
-</code></pre>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tc qdisc change dev eth1 root netem delay 5ms
+</code></pre></div></div>
 
 <p>Show configuration of eth1</p>
-<pre><code>tc qdisc show dev eth1
-</code></pre>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tc qdisc show dev eth1
+</code></pre></div></div>
 
 <p>Remove a configured delay</p>
-<pre><code>tc qdisc del dev eth1 root netem delay 4ms
-</code></pre>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tc qdisc del dev eth1 root netem delay 4ms
+</code></pre></div></div>
 
 <h2 id="example">Example</h2>
 <p>I’m just going to ping my virtual machine and add a delay after a couple of pings.</p>
 
 <p>Ping my virtual machine from my local machine</p>
-<pre><code>ping oracle-database-183
-</code></pre>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ping oracle-database-183
+</code></pre></div></div>
 
 <p>Add delay of 10ms on eth1 on my virtual machine. This means the packages leaving eth1 (in this examples the answers to the ping) will be delayed by 10ms.</p>
-<pre><code>tc qdisc add dev eth1 root netem delay 10ms
-</code></pre>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tc qdisc add dev eth1 root netem delay 10ms
+</code></pre></div></div>
 
 <p>Output of ping</p>
-<pre><code>PING oracle-database-183 (192.168.56.202): 56 data bytes
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PING oracle-database-183 (192.168.56.202): 56 data bytes
 64 bytes from 192.168.56.202: icmp_seq=0 ttl=64 time=0.255 ms
 64 bytes from 192.168.56.202: icmp_seq=1 ttl=64 time=0.376 ms
 64 bytes from 192.168.56.202: icmp_seq=2 ttl=64 time=0.329 ms
@@ -189,7 +189,7 @@ For example you want to know what it means if you move an application currently 
 64 bytes from 192.168.56.202: icmp_seq=7 ttl=64 time=10.910 ms
 64 bytes from 192.168.56.202: icmp_seq=8 ttl=64 time=10.900 ms
 64 bytes from 192.168.56.202: icmp_seq=9 ttl=64 time=10.790 ms
-</code></pre>
+</code></pre></div></div>
 
 <p>The output of ping clearly shows the effect of adding the delay with tc.</p>
 

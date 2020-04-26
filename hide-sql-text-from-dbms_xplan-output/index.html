@@ -39,7 +39,7 @@
 
   <!-- Begin Jekyll SEO tag v2.6.1 -->
 <title>Hide SQL statement text from DBMS_XPLAN output | blog.aregger.io</title>
-<meta name="generator" content="Jekyll v3.8.6" />
+<meta name="generator" content="Jekyll v4.0.0" />
 <meta property="og:title" content="Hide SQL statement text from DBMS_XPLAN output" />
 <meta name="author" content="Thomas Aregger" />
 <meta property="og:locale" content="en_US" />
@@ -55,7 +55,7 @@
 <meta name="twitter:site" content="@taregger" />
 <meta name="twitter:creator" content="@taregger" />
 <script type="application/ld+json">
-{"datePublished":"2018-04-22T13:09:23+02:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/hide-sql-text-from-dbms_xplan-output/"},"url":"https://blog.aregger.io/hide-sql-text-from-dbms_xplan-output/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"The dbms_xplan.display* functions have a lot of options to format the execution plan output via the format parameter. What often annoys me is the output of the SQL statement text. If, for example, you want to display all execution plans of a cursor with many child cursors and large SQL statement texts, the SQL text is returned for each child cursor and clutters your screen. Unfortunately there is no way to turn off this output with a format parameter.","headline":"Hide SQL statement text from DBMS_XPLAN output","dateModified":"2018-04-22T13:09:23+02:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+{"author":{"@type":"Person","name":"Thomas Aregger"},"url":"https://blog.aregger.io/hide-sql-text-from-dbms_xplan-output/","headline":"Hide SQL statement text from DBMS_XPLAN output","dateModified":"2018-04-22T13:09:23+02:00","datePublished":"2018-04-22T13:09:23+02:00","description":"The dbms_xplan.display* functions have a lot of options to format the execution plan output via the format parameter. What often annoys me is the output of the SQL statement text. If, for example, you want to display all execution plans of a cursor with many child cursors and large SQL statement texts, the SQL text is returned for each child cursor and clutters your screen. Unfortunately there is no way to turn off this output with a format parameter.","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/hide-sql-text-from-dbms_xplan-output/"},"@type":"BlogPosting","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -127,7 +127,7 @@
     </div>
 
     <!-- 
-    <p>&copy; 2019. All rights reserved.</p>
+    <p>&copy; 2020. All rights reserved.</p>
     -->
   </div>
 </div>
@@ -139,31 +139,31 @@
   <span class="post-date">22 Apr 2018</span>
   <p>The <a href="https://docs.oracle.com/database/121/ARPLS/d_xplan.htm#ARPLS70130">dbms_xplan.display*</a> functions have a lot of options to format the execution plan output via the format parameter. What often annoys me is the output of the SQL statement text. If, for example, you want to display all execution plans of a cursor with many child cursors and large SQL statement texts, the SQL text is returned for each child cursor and clutters your screen. Unfortunately there is no way to turn off this output with a format parameter.</p>
 
-<p>Luckily we can just filter the rows returned by <code>dbms_xplan.display*</code> functions with a custom query. This blog post show you how. If you are just interested in how the final query looks like, click <a href="#final-query">here</a>.</p>
+<p>Luckily we can just filter the rows returned by <code class="highlighter-rouge">dbms_xplan.display*</code> functions with a custom query. This blog post show you how. If you are just interested in how the final query looks like, click <a href="#final-query">here</a>.</p>
 
 <h2 id="build-the-query">Build the query</h2>
 
-<p>First, let’s have a look at a sample output of <code>dbms_xplan.display_cursor</code> for a cursor with 2 child cursors.</p>
+<p>First, let’s have a look at a sample output of <code class="highlighter-rouge">dbms_xplan.display_cursor</code> for a cursor with 2 child cursors.</p>
 
 <h4 id="query">Query</h4>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="k">table</span><span class="p">(</span>
-  <span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">(</span><span class="s1">&#39;&amp;sqlId&#39;</span><span class="p">,</span> <span class="k">null</span><span class="p">,</span> <span class="s1">&#39;TYPICAL&#39;</span><span class="p">)</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="k">table</span><span class="p">(</span>
+  <span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">(</span><span class="s1">'&amp;sqlId'</span><span class="p">,</span> <span class="k">null</span><span class="p">,</span> <span class="s1">'TYPICAL'</span><span class="p">)</span>
 <span class="p">);</span></code></pre></figure>
 
 <h4 id="output">Output</h4>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>PLAN_TABLE_OUTPUT
+<figure class="highlight"><pre><code class="language-text" data-lang="text">PLAN_TABLE_OUTPUT
 ------------------------------------------------------------------------
-<span class="hll">SQL_ID  934ur8r7tqbjx, child number 0
-</span>-------------------------------------
+SQL_ID  934ur8r7tqbjx, child number 0
+-------------------------------------
 SELECT DBID FROM V$DATABASE
 
 Plan hash value: 735420252
 
 ----------------------------------------------------------------------
-<span class="hll">| Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
-</span>----------------------------------------------------------------------
+| Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+----------------------------------------------------------------------
 |   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
 |   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
 |*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
@@ -174,17 +174,17 @@ Plan hash value: 735420252
 Predicate Information (identified by operation id):
 ---------------------------------------------------
 
-   2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))
+   2 - filter("DI"."INST_ID"=USERENV('INSTANCE'))
 
-<span class="hll">SQL_ID  934ur8r7tqbjx, child number 1
-</span>-------------------------------------
+SQL_ID  934ur8r7tqbjx, child number 1
+-------------------------------------
 SELECT DBID FROM V$DATABASE
 
 Plan hash value: 735420252
 
 ----------------------------------------------------------------------
-<span class="hll">| Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
-</span>----------------------------------------------------------------------
+| Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+----------------------------------------------------------------------
 |   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
 |   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
 |*  2 |   FIXED TABLE FULL   | X$KCCDI  |     1 |    26 |     0   (0)|
@@ -195,14 +195,14 @@ Plan hash value: 735420252
 Predicate Information (identified by operation id):
 ---------------------------------------------------
 
-   2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))</code></pre></figure>
+   2 - filter("DI"."INST_ID"=USERENV('INSTANCE'))</code></pre></figure>
 
 <p>The highlighted lines in the output above should always occur in the output, no matter what format options are defined. They are also very easy to identify with a simple regex, so the idea is to filter out everything in between them, with some exceptions (like the Plan hash value line or the header of the execution plan table).</p>
 
 <p>A couple of ways to do that come to my mind:</p>
 
 <ul>
-  <li>Create a PL/SQL function which accepts the output of the <code>DBMS_XPLAN.DISPLAY_CURSOR</code> function and process it procedurally row by row. I don’t want to create any objects in the database, but in 12c you could define the function in the <code>WITH</code> clause. As I want a solution also working on older Oracle version I don’t follow this approach.</li>
+  <li>Create a PL/SQL function which accepts the output of the <code class="highlighter-rouge">DBMS_XPLAN.DISPLAY_CURSOR</code> function and process it procedurally row by row. I don’t want to create any objects in the database, but in 12c you could define the function in the <code class="highlighter-rouge">WITH</code> clause. As I want a solution also working on older Oracle version I don’t follow this approach.</li>
   <li>The pattern matching functionality in 12c is very powerful and could to this job, but again, I don’t want to depend on 12c.</li>
   <li>There must be a way to do this with analytic functions. They are available since Oracle 8i, so I’m able to use this solution on all environments I need.</li>
 </ul>
@@ -211,44 +211,44 @@ Predicate Information (identified by operation id):
 
 <p>The idea is to add an additional column to the plan output which has the value 1 if the row should be display or 0 if it shouldn’t be displayed.</p>
 
-<p>I use the <code>CASE</code> expression as a first step to mark a row to either be shown or not. In combination with the <a href="https://docs.oracle.com/database/121/SQLRF/functions097.htm#SQLRF00655">LAST_VALUE</a> analytic function we can mark all subsequent rows the same way.</p>
+<p>I use the <code class="highlighter-rouge">CASE</code> expression as a first step to mark a row to either be shown or not. In combination with the <a href="https://docs.oracle.com/database/121/SQLRF/functions097.htm#SQLRF00655">LAST_VALUE</a> analytic function we can mark all subsequent rows the same way.</p>
 
 <h4 id="query-1">Query</h4>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="n">plan_table_output</span><span class="p">,</span><span class="k">show</span> <span class="k">from</span> <span class="p">(</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">select</span> <span class="n">plan_table_output</span><span class="p">,</span><span class="k">show</span> <span class="k">from</span> <span class="p">(</span>
 <span class="k">select</span>
   <span class="n">plan_table_output</span><span class="p">,</span>
   <span class="n">last_value</span><span class="p">(</span>
     <span class="k">case</span>
-      <span class="k">when</span> <span class="n">plan_table_output</span> <span class="k">like</span> <span class="s1">&#39;| Id%&#39;</span>
+      <span class="k">when</span> <span class="n">plan_table_output</span> <span class="k">like</span> <span class="s1">'| Id%'</span>
         <span class="k">then</span> <span class="mi">1</span>
       <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">,</span>
-                       <span class="s1">&#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&#39;</span><span class="p">)</span>
+                       <span class="s1">'SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*'</span><span class="p">)</span>
         <span class="k">then</span> <span class="mi">0</span> 
       <span class="k">else</span> <span class="k">null</span>
     <span class="k">end</span><span class="p">)</span> <span class="k">ignore</span> <span class="n">nulls</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">)</span>
   <span class="k">as</span> <span class="k">show</span>
-<span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">(</span><span class="s1">&#39;&amp;sqlId&#39;</span><span class="p">,</span><span class="k">null</span><span class="p">,</span><span class="s1">&#39;TYPICAL&#39;</span><span class="p">)))</span>
+<span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">(</span><span class="s1">'&amp;sqlId'</span><span class="p">,</span><span class="k">null</span><span class="p">,</span><span class="s1">'TYPICAL'</span><span class="p">)))</span>
 <span class="o">/</span></code></pre></figure>
 
 <p>Check the output below first, to see what’s returned.</p>
 
-<p>The use of <code>NULL</code> and the <code>IGNORE NULLS</code> clause in the <code>LAST_VALUE</code> function is important. This way, for every <code>NULL</code> returned by the <code>CASE</code> expression, the <code>LAST_VALUE</code> function ignores them and uses the last non-null value, which is either 1 or 0.</p>
+<p>The use of <code class="highlighter-rouge">NULL</code> and the <code class="highlighter-rouge">IGNORE NULLS</code> clause in the <code class="highlighter-rouge">LAST_VALUE</code> function is important. This way, for every <code class="highlighter-rouge">NULL</code> returned by the <code class="highlighter-rouge">CASE</code> expression, the <code class="highlighter-rouge">LAST_VALUE</code> function ignores them and uses the last non-null value, which is either 1 or 0.</p>
 
-<p>Note that the regex also searches for <code>HASH_VALUE</code> and <code>EXPLAINED SQL STATEMENT</code>. This is because, depending on the detail level chosen in the format parameter of the <code>DBMS_XPLAN</code> function, the output looks a little bit different.</p>
+<p>Note that the regex also searches for <code class="highlighter-rouge">HASH_VALUE</code> and <code class="highlighter-rouge">EXPLAINED SQL STATEMENT</code>. This is because, depending on the detail level chosen in the format parameter of the <code class="highlighter-rouge">DBMS_XPLAN</code> function, the output looks a little bit different.</p>
 
 <h4 id="output-1">Output</h4>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>SHOW PLAN_TABLE_OUTPUT
+<figure class="highlight"><pre><code class="language-text" data-lang="text">SHOW PLAN_TABLE_OUTPUT
 ---- ----------------------------------------------------------------------
-<span class="hll">   0 SQL_ID  934ur8r7tqbjx, child number 0
-</span><span class="hll">   0 -------------------------------------
-</span><span class="hll">   0 SELECT DBID FROM V$DATABASE
-</span><span class="hll">   0
-</span><span class="hll">   0 Plan hash value: 735420252
-</span><span class="hll">   0
-</span><span class="hll">   0 ----------------------------------------------------------------------
-</span>   1 | Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+   0 SQL_ID  934ur8r7tqbjx, child number 0
+   0 -------------------------------------
+   0 SELECT DBID FROM V$DATABASE
+   0
+   0 Plan hash value: 735420252
+   0
+   0 ----------------------------------------------------------------------
+   1 | Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
    1 ----------------------------------------------------------------------
    1 |   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
    1 |   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
@@ -260,16 +260,16 @@ Predicate Information (identified by operation id):
    1 Predicate Information (identified by operation id):
    1 ---------------------------------------------------
    1
-   1    2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))
+   1    2 - filter("DI"."INST_ID"=USERENV('INSTANCE'))
    1
-<span class="hll">   0 SQL_ID  934ur8r7tqbjx, child number 1
-</span><span class="hll">   0 -------------------------------------
-</span><span class="hll">   0 SELECT DBID FROM V$DATABASE
-</span><span class="hll">   0
-</span><span class="hll">   0 Plan hash value: 735420252
-</span><span class="hll">   0
-</span><span class="hll">   0 ----------------------------------------------------------------------
-</span>   1 | Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
+   0 SQL_ID  934ur8r7tqbjx, child number 1
+   0 -------------------------------------
+   0 SELECT DBID FROM V$DATABASE
+   0
+   0 Plan hash value: 735420252
+   0
+   0 ----------------------------------------------------------------------
+   1 | Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
    1 ----------------------------------------------------------------------
    1 |   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
    1 |   1 |  MERGE JOIN CARTESIAN|          |   100 |  2600 |     0   (0)|
@@ -281,64 +281,64 @@ Predicate Information (identified by operation id):
    1 Predicate Information (identified by operation id):
    1 ---------------------------------------------------
    1
-   1    2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))
+   1    2 - filter("DI"."INST_ID"=USERENV('INSTANCE'))
    1</code></pre></figure>
 
-<p>The column <code>SHOW</code> now correctly contains 0 for the SQL statement section, but we also have some false negatives:</p>
+<p>The column <code class="highlighter-rouge">SHOW</code> now correctly contains 0 for the SQL statement section, but we also have some false negatives:</p>
 
 <ul>
-  <li>The row showing use the <code>SQL_ID</code></li>
-  <li>The row after the <code>SQL_ID</code> which is kind of a separator</li>
+  <li>The row showing use the <code class="highlighter-rouge">SQL_ID</code></li>
+  <li>The row after the <code class="highlighter-rouge">SQL_ID</code> which is kind of a separator</li>
   <li>The row showing the plan hash value</li>
   <li>The first row which is part of the execution plan table header</li>
 </ul>
 
 <h3 id="second-step-refine-query">Second step: Refine query</h3>
 
-<p>To fix these false negatives, again we use the <code>CASE</code> expression in combination with some regex.</p>
+<p>To fix these false negatives, again we use the <code class="highlighter-rouge">CASE</code> expression in combination with some regex.</p>
 
-<p>The <code>LAG</code> and <code>LEAD</code> analytic functions are used to decide what value the column has, depending on the next or previous row.</p>
+<p>The <code class="highlighter-rouge">LAG</code> and <code class="highlighter-rouge">LEAD</code> analytic functions are used to decide what value the column has, depending on the next or previous row.</p>
 
 <h4 id="query-2">Query</h4>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="k">select</span> <span class="k">show</span><span class="p">,</span><span class="n">plan_table_output</span> <span class="k">from</span> <span class="p">(</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">select</span> <span class="k">show</span><span class="p">,</span><span class="n">plan_table_output</span> <span class="k">from</span> <span class="p">(</span>
 <span class="k">select</span>
   <span class="n">plan_table_output</span><span class="p">,</span>
   <span class="k">case</span>
-<span class="hll">    <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">,</span> 
-</span><span class="hll">                    <span class="s1">&#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&#39;</span><span class="p">)</span>
-</span><span class="hll">      <span class="k">then</span> <span class="mi">1</span>
-</span><span class="hll">    <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">lag</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">)</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">),</span>
-</span><span class="hll">                    <span class="s1">&#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&#39;</span><span class="p">)</span>
-</span><span class="hll">      <span class="k">then</span> <span class="mi">1</span>
-</span><span class="hll">    <span class="k">when</span> <span class="p">(</span><span class="n">lead</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">)</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">))</span> <span class="k">like</span> <span class="s1">&#39;| Id%&#39;</span>
-</span><span class="hll">      <span class="k">then</span> <span class="mi">1</span>
-</span><span class="hll">    <span class="k">when</span> <span class="n">plan_table_output</span> <span class="k">like</span> <span class="s1">&#39;Plan hash value%&#39;</span>
-</span><span class="hll">      <span class="k">then</span> <span class="mi">1</span>
-</span>    <span class="k">else</span> <span class="n">last_value</span><span class="p">(</span>
+    <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">,</span> 
+                    <span class="s1">'SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*'</span><span class="p">)</span>
+      <span class="k">then</span> <span class="mi">1</span>
+    <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">lag</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">)</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">),</span>
+                    <span class="s1">'SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*'</span><span class="p">)</span>
+      <span class="k">then</span> <span class="mi">1</span>
+    <span class="k">when</span> <span class="p">(</span><span class="n">lead</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">)</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">))</span> <span class="k">like</span> <span class="s1">'| Id%'</span>
+      <span class="k">then</span> <span class="mi">1</span>
+    <span class="k">when</span> <span class="n">plan_table_output</span> <span class="k">like</span> <span class="s1">'Plan hash value%'</span>
+      <span class="k">then</span> <span class="mi">1</span>
+    <span class="k">else</span> <span class="n">last_value</span><span class="p">(</span>
       <span class="k">case</span>
-        <span class="k">when</span> <span class="n">plan_table_output</span> <span class="k">like</span> <span class="s1">&#39;| Id%&#39;</span>
+        <span class="k">when</span> <span class="n">plan_table_output</span> <span class="k">like</span> <span class="s1">'| Id%'</span>
           <span class="k">then</span> <span class="mi">1</span>
         <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">,</span>
-                        <span class="s1">&#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&#39;</span><span class="p">)</span>
+                        <span class="s1">'SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*'</span><span class="p">)</span>
           <span class="k">then</span> <span class="mi">0</span> 
 	<span class="k">else</span> <span class="k">null</span>
     <span class="k">end</span><span class="p">)</span> <span class="k">ignore</span> <span class="n">nulls</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">)</span>
   <span class="k">end</span> <span class="k">as</span> <span class="k">show</span>
-<span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">(</span><span class="s1">&#39;&amp;sqlId&#39;</span><span class="p">,</span> <span class="k">null</span><span class="p">,</span><span class="s1">&#39;TYPICAL&#39;</span><span class="p">)))</span>
+<span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">(</span><span class="s1">'&amp;sqlId'</span><span class="p">,</span> <span class="k">null</span><span class="p">,</span><span class="s1">'TYPICAL'</span><span class="p">)))</span>
 <span class="o">/</span></code></pre></figure>
 
 <h4 id="output-2">Output</h4>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>SHOW PLAN_TABLE_OUTPUT
+<figure class="highlight"><pre><code class="language-text" data-lang="text">SHOW PLAN_TABLE_OUTPUT
 ---- ----------------------------------------------------------------------
    1 SQL_ID  934ur8r7tqbjx, child number 0
    1 -------------------------------------
-<span class="hll">   0 SELECT DBID FROM V$DATABASE
-</span><span class="hll">   0
-</span>   1 Plan hash value: 735420252
-<span class="hll">   0
-</span>   1 ----------------------------------------------------------------------
+   0 SELECT DBID FROM V$DATABASE
+   0
+   1 Plan hash value: 735420252
+   0
+   1 ----------------------------------------------------------------------
    1 | Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
    1 ----------------------------------------------------------------------
    1 |   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
@@ -351,15 +351,15 @@ Predicate Information (identified by operation id):
    1 Predicate Information (identified by operation id):
    1 ---------------------------------------------------
    1
-   1    2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))
+   1    2 - filter("DI"."INST_ID"=USERENV('INSTANCE'))
    1
    1 SQL_ID  934ur8r7tqbjx, child number 1
    1 -------------------------------------
-<span class="hll">   0 SELECT DBID FROM V$DATABASE
-</span><span class="hll">   0
-</span>   1 Plan hash value: 735420252
-<span class="hll">   0
-</span>   1 ----------------------------------------------------------------------
+   0 SELECT DBID FROM V$DATABASE
+   0
+   1 Plan hash value: 735420252
+   0
+   1 ----------------------------------------------------------------------
    1 | Id  | Operation            | Name     | Rows  | Bytes | Cost (%CPU)|
    1 ----------------------------------------------------------------------
    1 |   0 | SELECT STATEMENT     |          |       |       |     1 (100)|
@@ -372,48 +372,48 @@ Predicate Information (identified by operation id):
    1 Predicate Information (identified by operation id):
    1 ---------------------------------------------------
    1
-   1    2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))
+   1    2 - filter("DI"."INST_ID"=USERENV('INSTANCE'))
    1</code></pre></figure>
 
 <p><a id="final-query"></a></p>
 
 <h3 id="final-query">Final query</h3>
 
-<p>This is exactly what we want. All we have to do now, is to remove the projection of the <code>SHOW</code> column and filter the rows with <code>SHOW=0</code>.</p>
+<p>This is exactly what we want. All we have to do now, is to remove the projection of the <code class="highlighter-rouge">SHOW</code> column and filter the rows with <code class="highlighter-rouge">SHOW=0</code>.</p>
 
 <h4 id="query-3">Query</h4>
 
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span></span><span class="hll"><span class="k">select</span> <span class="n">plan_table_output</span> <span class="k">from</span> <span class="p">(</span>
-</span><span class="k">select</span>
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">select</span> <span class="n">plan_table_output</span> <span class="k">from</span> <span class="p">(</span>
+<span class="k">select</span>
   <span class="n">plan_table_output</span><span class="p">,</span>
   <span class="k">case</span>
     <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">,</span> 
-                    <span class="s1">&#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&#39;</span><span class="p">)</span>
+                    <span class="s1">'SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*'</span><span class="p">)</span>
       <span class="k">then</span> <span class="mi">1</span>
     <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">lag</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">)</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">),</span>
-                    <span class="s1">&#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&#39;</span><span class="p">)</span>
+                    <span class="s1">'SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*'</span><span class="p">)</span>
       <span class="k">then</span> <span class="mi">1</span>
-    <span class="k">when</span> <span class="p">(</span><span class="n">lead</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">)</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">))</span> <span class="k">like</span> <span class="s1">&#39;| Id%&#39;</span>
+    <span class="k">when</span> <span class="p">(</span><span class="n">lead</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">)</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">))</span> <span class="k">like</span> <span class="s1">'| Id%'</span>
       <span class="k">then</span> <span class="mi">1</span>
-    <span class="k">when</span> <span class="n">plan_table_output</span> <span class="k">like</span> <span class="s1">&#39;Plan hash value%&#39;</span>
+    <span class="k">when</span> <span class="n">plan_table_output</span> <span class="k">like</span> <span class="s1">'Plan hash value%'</span>
       <span class="k">then</span> <span class="mi">1</span>
     <span class="k">else</span> <span class="n">last_value</span><span class="p">(</span>
       <span class="k">case</span>
-        <span class="k">when</span> <span class="n">plan_table_output</span> <span class="k">like</span> <span class="s1">&#39;| Id%&#39;</span> 
+        <span class="k">when</span> <span class="n">plan_table_output</span> <span class="k">like</span> <span class="s1">'| Id%'</span> 
           <span class="k">then</span> <span class="mi">1</span>
         <span class="k">when</span> <span class="n">regexp_like</span><span class="p">(</span><span class="n">plan_table_output</span><span class="p">,</span> 
-                        <span class="s1">&#39;SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*&#39;</span><span class="p">)</span>
+                        <span class="s1">'SQL_ID.*|HASH_VALUE.*|EXPLAINED SQL STATEMENT.*'</span><span class="p">)</span>
           <span class="k">then</span> <span class="mi">0</span> 
 	<span class="k">else</span> <span class="k">null</span>
     <span class="k">end</span><span class="p">)</span> <span class="k">ignore</span> <span class="n">nulls</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="n">rownum</span><span class="p">)</span>
   <span class="k">end</span> <span class="k">as</span> <span class="k">show</span>
-<span class="hll"><span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">(</span><span class="s1">&#39;&amp;sqlId&#39;</span><span class="p">,</span> <span class="k">null</span><span class="p">,</span><span class="s1">&#39;TYPICAL&#39;</span><span class="p">)))</span>
-</span><span class="k">where</span> <span class="k">show</span><span class="o">=</span><span class="mi">1</span>
+<span class="k">from</span> <span class="k">table</span><span class="p">(</span><span class="n">dbms_xplan</span><span class="p">.</span><span class="n">display_cursor</span><span class="p">(</span><span class="s1">'&amp;sqlId'</span><span class="p">,</span> <span class="k">null</span><span class="p">,</span><span class="s1">'TYPICAL'</span><span class="p">)))</span>
+<span class="k">where</span> <span class="k">show</span><span class="o">=</span><span class="mi">1</span>
 <span class="o">/</span></code></pre></figure>
 
 <h4 id="output-3">Output</h4>
 
-<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>PLAN_TABLE_OUTPUT
+<figure class="highlight"><pre><code class="language-text" data-lang="text">PLAN_TABLE_OUTPUT
 ----------------------------------------------------------------------
 SQL_ID  934ur8r7tqbjx, child number 0
 -------------------------------------
@@ -431,7 +431,7 @@ Plan hash value: 735420252
 Predicate Information (identified by operation id):
 ---------------------------------------------------
 
-   2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))
+   2 - filter("DI"."INST_ID"=USERENV('INSTANCE'))
 
 SQL_ID  934ur8r7tqbjx, child number 1
 -------------------------------------
@@ -449,7 +449,7 @@ Plan hash value: 735420252
 Predicate Information (identified by operation id):
 ---------------------------------------------------
 
-   2 - filter(&quot;DI&quot;.&quot;INST_ID&quot;=USERENV(&#39;INSTANCE&#39;))</code></pre></figure>
+   2 - filter("DI"."INST_ID"=USERENV('INSTANCE'))</code></pre></figure>
 
 <p>The query was tested with various format options and should work equally well under 12c and 11g and probably also on older versions.</p>
 

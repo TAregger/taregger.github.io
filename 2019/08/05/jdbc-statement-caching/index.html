@@ -39,7 +39,7 @@
 
   <!-- Begin Jekyll SEO tag v2.6.1 -->
 <title>JDBC Statement Caching: Implicit vs. Explicit | blog.aregger.io</title>
-<meta name="generator" content="Jekyll v3.8.6" />
+<meta name="generator" content="Jekyll v4.0.0" />
 <meta property="og:title" content="JDBC Statement Caching: Implicit vs. Explicit" />
 <meta name="author" content="Thomas Aregger" />
 <meta property="og:locale" content="en_US" />
@@ -57,7 +57,7 @@
 <meta name="twitter:site" content="@taregger" />
 <meta name="twitter:creator" content="@taregger" />
 <script type="application/ld+json">
-{"datePublished":"2019-08-05T00:00:00+02:00","image":"https://blog.aregger.io/assets/2019-08-05-jdbc-statement-caching/thumbnail.png","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/2019/08/05/jdbc-statement-caching/"},"url":"https://blog.aregger.io/2019/08/05/jdbc-statement-caching/","author":{"@type":"Person","name":"Thomas Aregger"},"description":"The Oracle JDBC driver offers two methods for client-side statement caching. Enabling statement caching changes the behavior when the client closes a prepared statement. With statement caching disabled, the driver simply closes the statement. This is a server call which closes the associated cursor on the database. When the same statement is executed again it has to be at least soft parsed again. With statement caching enabled, the statement and its associated database cursor are not closed. Instead the statement is put in a pool (basically a LRU list of statements) for reuse. This way soft parses can be avoided which saves database resources and improves performance, which is the main reason to use statement caching.","headline":"JDBC Statement Caching: Implicit vs. Explicit","dateModified":"2019-08-05T00:00:00+02:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+{"image":"https://blog.aregger.io/assets/2019-08-05-jdbc-statement-caching/thumbnail.png","author":{"@type":"Person","name":"Thomas Aregger"},"url":"https://blog.aregger.io/2019/08/05/jdbc-statement-caching/","headline":"JDBC Statement Caching: Implicit vs. Explicit","dateModified":"2019-08-05T00:00:00+02:00","datePublished":"2019-08-05T00:00:00+02:00","description":"The Oracle JDBC driver offers two methods for client-side statement caching. Enabling statement caching changes the behavior when the client closes a prepared statement. With statement caching disabled, the driver simply closes the statement. This is a server call which closes the associated cursor on the database. When the same statement is executed again it has to be at least soft parsed again. With statement caching enabled, the statement and its associated database cursor are not closed. Instead the statement is put in a pool (basically a LRU list of statements) for reuse. This way soft parses can be avoided which saves database resources and improves performance, which is the main reason to use statement caching.","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/2019/08/05/jdbc-statement-caching/"},"@type":"BlogPosting","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -129,7 +129,7 @@
     </div>
 
     <!-- 
-    <p>&copy; 2019. All rights reserved.</p>
+    <p>&copy; 2020. All rights reserved.</p>
     -->
   </div>
 </div>
@@ -146,18 +146,18 @@
 <h1 id="cached-statement-retrieval">Cached Statement Retrieval</h1>
 <p>First, let’s have a look at some code to recap how these two methods are used.</p>
 
-<p>Please note that while the examples always use <code>PreparedStatement</code>, caching is also done for <code>CallableStatement</code> but not for plain <code>Statement</code>.</p>
+<p>Please note that while the examples always use <code class="highlighter-rouge">PreparedStatement</code>, caching is also done for <code class="highlighter-rouge">CallableStatement</code> but not for plain <code class="highlighter-rouge">Statement</code>.</p>
 
 <h2 id="implicit-caching">Implicit Caching</h2>
 <p>The following code snippet demonstrates the use of implicit statement caching:</p>
 
-<figure class="highlight"><pre><code class="language-java" data-lang="java"><span></span><span class="c1">// Enable implicit cache. Cache 5 statements.</span>
+<figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="c1">// Enable implicit cache. Cache 5 statements.</span>
 <span class="n">connection</span><span class="o">.</span><span class="na">setImplicitCachingEnabled</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
 <span class="n">connection</span><span class="o">.</span><span class="na">setStatementCacheSize</span><span class="o">(</span><span class="mi">5</span><span class="o">);</span>
 
 <span class="c1">// Prepare statement</span>
-<span class="n">PreparedStatement</span> <span class="n">statement</span> <span class="o">=</span>
-  <span class="n">connection</span><span class="o">.</span><span class="na">prepareStatement</span><span class="o">(</span><span class="s">&quot;select * from dual&quot;</span><span class="o">);</span>
+<span class="nc">PreparedStatement</span> <span class="n">statement</span> <span class="o">=</span>
+  <span class="n">connection</span><span class="o">.</span><span class="na">prepareStatement</span><span class="o">(</span><span class="s">"select * from dual"</span><span class="o">);</span>
 
 <span class="c1">// Execute and fetch ...</span>
 
@@ -165,30 +165,30 @@
 <span class="n">statement</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
 
 <span class="c1">// Statement is retrieved from the cache</span>
-<span class="n">statement</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">prepareStatement</span><span class="o">(</span><span class="s">&quot;select * from dual&quot;</span><span class="o">);</span></code></pre></figure>
+<span class="n">statement</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="na">prepareStatement</span><span class="o">(</span><span class="s">"select * from dual"</span><span class="o">);</span></code></pre></figure>
 
 <p>The code dealing with the prepared statement looks exactly the same as it would without caching enabled. When preparing a statement, the cache is searched for an already existing statement with the exact same SQL text and result set type. This has the huge advantage that you could benefit from it without any code changes. It’s transparent to the client and therefore can be used with any framework in use. The only thing that the client needs to do, is to enable it either on the connection or on the data source.</p>
 
 <h2 id="explicit-caching">Explicit Caching</h2>
 <p>Let’s have a look at code using explicit statement caching:</p>
 
-<figure class="highlight"><pre><code class="language-java" data-lang="java"><span></span><span class="c1">// Enable explicit cache. Cache 5 statements.</span>
+<figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="c1">// Enable explicit cache. Cache 5 statements.</span>
 <span class="n">connection</span><span class="o">.</span><span class="na">setExplicitCachingEnabled</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
 <span class="n">connection</span><span class="o">.</span><span class="na">setStatementCacheSize</span><span class="o">(</span><span class="mi">5</span><span class="o">);</span>
 
 <span class="c1">// Prepare statement</span>
-<span class="n">OraclePreparedStatement</span> <span class="n">statement</span> <span class="o">=</span>
-  <span class="o">(</span><span class="n">OraclePreparedStatement</span><span class="o">)</span> <span class="n">connection</span><span class="o">.</span><span class="na">prepareStatement</span><span class="o">(</span><span class="s">&quot;select * from dual&quot;</span><span class="o">);</span>
+<span class="nc">OraclePreparedStatement</span> <span class="n">statement</span> <span class="o">=</span>
+  <span class="o">(</span><span class="nc">OraclePreparedStatement</span><span class="o">)</span> <span class="n">connection</span><span class="o">.</span><span class="na">prepareStatement</span><span class="o">(</span><span class="s">"select * from dual"</span><span class="o">);</span>
 
 <span class="c1">// Execute and fetch ...</span>
 
 <span class="c1">// Statement is not closed but put it in the cache</span>
-<span class="n">statement</span><span class="o">.</span><span class="na">closeWithKey</span><span class="o">(</span><span class="s">&quot;myCacheKey&quot;</span><span class="o">);</span>
+<span class="n">statement</span><span class="o">.</span><span class="na">closeWithKey</span><span class="o">(</span><span class="s">"myCacheKey"</span><span class="o">);</span>
 
 <span class="c1">// Statement is retrieved from the cache</span>
-<span class="n">connection</span><span class="o">.</span><span class="na">getStatementWithKey</span><span class="o">(</span><span class="s">&quot;myCacheKey&quot;</span><span class="o">);</span></code></pre></figure>
+<span class="n">connection</span><span class="o">.</span><span class="na">getStatementWithKey</span><span class="o">(</span><span class="s">"myCacheKey"</span><span class="o">);</span></code></pre></figure>
 
-<p>The main difference to implicit caching is how the statement is put into the cache and how it’s retrieved from it. The statement has to be closed by providing a key. This <code>closeWithKey</code> method is declared in <code>OraclePreparedStatement</code> and is not available in <code>PreparedStatement</code>. The cached statement can be retrieved with the same key. Again, <code>getStatementWithKey</code> needs an <code>OracleConnection</code>.</p>
+<p>The main difference to implicit caching is how the statement is put into the cache and how it’s retrieved from it. The statement has to be closed by providing a key. This <code class="highlighter-rouge">closeWithKey</code> method is declared in <code class="highlighter-rouge">OraclePreparedStatement</code> and is not available in <code class="highlighter-rouge">PreparedStatement</code>. The cached statement can be retrieved with the same key. Again, <code class="highlighter-rouge">getStatementWithKey</code> needs an <code class="highlighter-rouge">OracleConnection</code>.</p>
 
 <p>So explicit caching needs some more work to be used in your code and leads to tighter coupling to Oracle specific classes and methods. I’m not aware of any data access framework supporting it.</p>
 
@@ -261,7 +261,7 @@
 </table>
 
 <h3 id="result-set-type-and-concurrency">Result Set Type and Concurrency</h3>
-<p>These properties are set by calling <code>Connection#prepareStatement</code>. For implicitly cached statements they are, together with the SQL text, part of the cache key. Therefore, a prepared statement is only found in the cache when these 2 properties match.</p>
+<p>These properties are set by calling <code class="highlighter-rouge">Connection#prepareStatement</code>. For implicitly cached statements they are, together with the SQL text, part of the cache key. Therefore, a prepared statement is only found in the cache when these 2 properties match.</p>
 
 <h3 id="lob-prefetch-size">LOB Prefetch Size</h3>
 <p>As the regular fetch size setting is not retained in implicitly cached statements, I expected the same for LOB prefetch size. Interestingly this is not the case.</p>
@@ -317,29 +317,29 @@
   </tr>
 </table>
 <h3 id="result-set">Result Set</h3>
-<p>When calling <code>Statement#close</code> the associated <code>ResultSet</code> is closed as well. This is also true when statement caching is enabled. Any subsequent calls on a result set returned by <code>Statement#getResultSet</code> will result in a <code>SQLException</code>.</p>
+<p>When calling <code class="highlighter-rouge">Statement#close</code> the associated <code class="highlighter-rouge">ResultSet</code> is closed as well. This is also true when statement caching is enabled. Any subsequent calls on a result set returned by <code class="highlighter-rouge">Statement#getResultSet</code> will result in a <code class="highlighter-rouge">SQLException</code>.</p>
 
 <h3 id="result-set-metadata">Result Set Metadata</h3>
-<p>Result set metadata (e.g. retrieved by <code>PreparedStatement#getMetaData</code>)  is retained by both explicit and implicit statement caching as it is stated in the documentation.</p>
+<p>Result set metadata (e.g. retrieved by <code class="highlighter-rouge">PreparedStatement#getMetaData</code>)  is retained by both explicit and implicit statement caching as it is stated in the documentation.</p>
 
 <h3 id="parameter-metadata">Parameter Metadata</h3>
-<p>As one would expect, parameter metadata (retrieved by <code>PreparedStatement#getParameterMetaData</code>) behaves exactly the same as result set metadata regarding caching. But interestingly parameter metadata is only cached when implicit caching is enabled. I assume it is because internally the JDBC driver executes some statements to retrieve this information from the database. With implicit caching enabled, these statements are automatically cached as well.</p>
+<p>As one would expect, parameter metadata (retrieved by <code class="highlighter-rouge">PreparedStatement#getParameterMetaData</code>) behaves exactly the same as result set metadata regarding caching. But interestingly parameter metadata is only cached when implicit caching is enabled. I assume it is because internally the JDBC driver executes some statements to retrieve this information from the database. With implicit caching enabled, these statements are automatically cached as well.</p>
 
 <h3 id="update-count">Update Count</h3>
-<p>After calling <code>PreparedStatement#executeUpdate</code> to insert or update records, the number of affected rows can be returned by calling <code>Statement#getUpdateCount</code>. The update count is retained for statements put into the cache. Interestingly this is also the case for implicitly cached statements. I don’t see any reason why this value is not reset for implicitly cached statements, and it’s not the behavior described in the documentation.</p>
+<p>After calling <code class="highlighter-rouge">PreparedStatement#executeUpdate</code> to insert or update records, the number of affected rows can be returned by calling <code class="highlighter-rouge">Statement#getUpdateCount</code>. The update count is retained for statements put into the cache. Interestingly this is also the case for implicitly cached statements. I don’t see any reason why this value is not reset for implicitly cached statements, and it’s not the behavior described in the documentation.</p>
 
-<p>This is only a problem if <code>Statement#getUpdateCount</code> is called after retrieving a statement from the cache but before doing an update. In this case the method reports the update count from the previous execution, otherwise the value simply gets overwritten when an update statement is executed.
-The reported row count also depends on whether the <code>Statement#getUpdateCount</code> was called on the statement before it was put back into the cache. It either reports the updated rows (if the method was not called previously) or -1, which means the value was already retrieved.</p>
+<p>This is only a problem if <code class="highlighter-rouge">Statement#getUpdateCount</code> is called after retrieving a statement from the cache but before doing an update. In this case the method reports the update count from the previous execution, otherwise the value simply gets overwritten when an update statement is executed.
+The reported row count also depends on whether the <code class="highlighter-rouge">Statement#getUpdateCount</code> was called on the statement before it was put back into the cache. It either reports the updated rows (if the method was not called previously) or -1, which means the value was already retrieved.</p>
 
 <h3 id="generated-keys">Generated Keys</h3>
-<p>By calling <code>Statement#getGeneratedKeys</code> one can retrieve the keys generated by an insert statement. In fact, any columns could be returned, but it makes most sense to return generated keys, as they are not already known by the client.
-This method returns a regular <code>ResultSet</code>, but unlike the one returned by <code>Statement#getResultSet</code> this one is retained for explicitly cached statements.</p>
+<p>By calling <code class="highlighter-rouge">Statement#getGeneratedKeys</code> one can retrieve the keys generated by an insert statement. In fact, any columns could be returned, but it makes most sense to return generated keys, as they are not already known by the client.
+This method returns a regular <code class="highlighter-rouge">ResultSet</code>, but unlike the one returned by <code class="highlighter-rouge">Statement#getResultSet</code> this one is retained for explicitly cached statements.</p>
 
 <h3 id="bind-data">Bind Data</h3>
-<p>Oracle uses three different ways for binding data depending on data size and type of SQL statement (SQL or PL/SQL): direct, stream or LOB binding. See the <a href="https://docs.oracle.com/en/database/oracle/oracle-database/18/jjdbc/accessing-and-manipulating-Oracle-data.html#GUID-9CF0FDC2-7BD5-4F96-8AED-F58DC30BE62B">documentation</a> for more information. Irrespective of the method used, bind data is always cached by explicit statement caching. You should be aware of this, as it can hugely impact your memory footprint when dealing with LOBs or other large data. Also keep it in mind when sizing the statement cache (<code>OracleConnection#setStatementCacheSize</code>).</p>
+<p>Oracle uses three different ways for binding data depending on data size and type of SQL statement (SQL or PL/SQL): direct, stream or LOB binding. See the <a href="https://docs.oracle.com/en/database/oracle/oracle-database/18/jjdbc/accessing-and-manipulating-Oracle-data.html#GUID-9CF0FDC2-7BD5-4F96-8AED-F58DC30BE62B">documentation</a> for more information. Irrespective of the method used, bind data is always cached by explicit statement caching. You should be aware of this, as it can hugely impact your memory footprint when dealing with LOBs or other large data. Also keep it in mind when sizing the statement cache (<code class="highlighter-rouge">OracleConnection#setStatementCacheSize</code>).</p>
 
 <h3 id="batches">Batches</h3>
-<p>To minimize round trips between the client and the database, a common technique is to batch bind data (<code>PreparedStatement#addBatch</code>) and send it to the database in one go. In contrast to non-batched statements where bind data is cached by explicit statement caching, it is not cached when using batches. Batches are always cleared when a statement is put into the cache.</p>
+<p>To minimize round trips between the client and the database, a common technique is to batch bind data (<code class="highlighter-rouge">PreparedStatement#addBatch</code>) and send it to the database in one go. In contrast to non-batched statements where bind data is cached by explicit statement caching, it is not cached when using batches. Batches are always cleared when a statement is put into the cache.</p>
 
 <h1 id="conclusion">Conclusion</h1>
 <p>Most data access frameworks nowadays take away the burden of SQL cursor handling. One of the benefits is, that it avoids cursor leaks, but on the other hands leads to more soft parses and cursor creation on the database side. JDBC statement caching does mitigate these issues, so using it is strongly recommended.</p>
