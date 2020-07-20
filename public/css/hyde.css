@@ -45,6 +45,14 @@ html {
   }
 }
 
+/*
+ * stretch code blocks on hover
+ */
+@media only screen and (min-width: 1200px) {
+  pre.highlight:hover {
+    width: calc(100vw - 560px);
+  }
+}
 
 /*
  * Sidebar

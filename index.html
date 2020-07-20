@@ -54,7 +54,7 @@
 <meta name="twitter:site" content="@taregger" />
 <meta name="twitter:creator" content="@taregger" />
 <script type="application/ld+json">
-{"author":{"@type":"Person","name":"Thomas Aregger"},"url":"https://blog.aregger.io/","name":"blog.aregger.io","headline":"Home","description":"A blog about Oracle, SQL and Java","@type":"WebSite","@context":"https://schema.org"}</script>
+{"headline":"Home","url":"https://blog.aregger.io/","name":"blog.aregger.io","author":{"@type":"Person","name":"Thomas Aregger"},"description":"A blog about Oracle, SQL and Java","@type":"WebSite","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -134,6 +134,61 @@
 
     <div class="content container">
       <div class="posts">
+  
+  <div class="post">
+    <h1 class="post-title">
+      <a href="/2020/07/20/DOP-downgrade-reason-codes/">
+        DOP Downgrade Reason Codes
+      </a>
+    </h1>
+
+    <span class="post-date">20 Jul 2020</span>
+
+    <p>Starting with Oracle 12.1 SQL Monitor reports show you the reason in case your parallel query has been downgraded. <a href="https://hourim.wordpress.com/2019/11/28/dop-downgrade/">This</a> blog post by Mohamed Houri demonstrates that the reason codes along with a description can be found in some fixed table.</p>
+
+<p>As the numbers can change from release to release and I don’t always have easy access to fixed tables I decided to quickly query the reason codes for all major releases and list them here. Maybe they come in handy in the future.</p>
+
+<p>The following query is used to get the reason codes:</p>
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">SELECT</span>
+  <span class="n">indx</span>
+  <span class="p">,</span><span class="n">qksxareasons</span>
+<span class="k">FROM</span>
+  <span class="n">x</span><span class="err">$</span><span class="n">qksxa_reason</span>
+<span class="k">WHERE</span>
+  <span class="n">qksxareasons</span> <span class="k">like</span> <span class="s1">'%DOP downgrade%'</span><span class="p">;</span> 
+</code></pre></div></div>
+
+<h3 id="12cr1">12cR1</h3>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>INDX QKSXAREASONS
+---- -----------------------------------------------------
+ 350 DOP downgrade due to adaptive DOP
+ 351 DOP downgrade due to resource manager max DOP
+ 352 DOP downgrade due to insufficient number of processes
+ 353 DOP downgrade because slaves failed to join
+</code></pre></div></div>
+
+<h3 id="12cr2">12cR2</h3>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>INDX QKSXAREASONS
+---- -----------------------------------------------------
+ 351 DOP downgrade due to adaptive DOP
+ 352 DOP downgrade due to resource manager max DOP
+ 353 DOP downgrade due to insufficient number of processes
+ 354 DOP downgrade because slaves failed to join
+</code></pre></div></div>
+
+<h3 id="18c--19c">18c &amp; 19c</h3>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>INDX QKSXAREASONS
+---- -----------------------------------------------------
+ 352 DOP downgrade due to adaptive DOP
+ 353 DOP downgrade due to resource manager max DOP
+ 354 DOP downgrade due to insufficient number of processes
+ 355 DOP downgrade because slaves failed to join
+</code></pre></div></div>
+
+
+
+    <a href="/2020/07/20/DOP-downgrade-reason-codes/#comments">Comment</a>
+  </div>
   
   <div class="post">
     <h1 class="post-title">
@@ -734,49 +789,6 @@ skgm overhead                    000000009EC00000  000000009EC05000      20480</
 
 
     <a href="/2019/03/18/sga-areas-in-x$ksmmem/#comments">Comment</a>
-  </div>
-  
-  <div class="post">
-    <h1 class="post-title">
-      <a href="/2019/01/28/strange-case-of-ora-01950-no-privileges-on-tablespace/">
-        Strange case of ORA-01950: no privileges on tablespace
-      </a>
-    </h1>
-
-    <span class="post-date">28 Jan 2019</span>
-
-    <p>I recently faced a strange issue where a user got an <code class="highlighter-rouge">ORA-01950: no privileges on tablespace</code> while issuing some DML statement.
-A quick look on <code class="highlighter-rouge">DBA_TS_QUOTAS</code> showed that the segment owner (according to <code class="highlighter-rouge">DBA_SEGMENTS</code>) has unlimited quota on the reported tablespace.</p>
-
-<p>After checking the view definition of <code class="highlighter-rouge">DBA_SEGMENTS</code> and its backing view <code class="highlighter-rouge">SYS_DBA_SEGS</code> I became a bit suspicious because the reported owner is taken from <code class="highlighter-rouge">SYS.OBJ$</code>. Could it be, that the segment is in fact owned by a different user?</p>
-
-<p>Bingo! Querying <code class="highlighter-rouge">SYS.SEG$</code> revealed that the owner of the segment (<code class="highlighter-rouge">USER#</code>) is indeed a different one than the one reported by <code class="highlighter-rouge">DBA_SEGMENTS</code>. In fact, the user did not even exist anymore.</p>
-
-<p>The following query shows all segments where the segment owner does not exist anymore:</p>
-
-<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">select</span> <span class="n">se</span><span class="p">.</span><span class="k">owner</span><span class="p">,</span> <span class="n">se</span><span class="p">.</span><span class="n">segment_name</span><span class="p">,</span> <span class="n">se</span><span class="p">.</span><span class="n">segment_type</span>
-<span class="k">from</span> <span class="n">sys</span><span class="p">.</span><span class="n">seg</span><span class="err">$</span> <span class="n">s</span>
-<span class="k">join</span> <span class="n">dba_segments</span> <span class="n">se</span>
-  <span class="k">on</span> <span class="p">(</span><span class="n">se</span><span class="p">.</span><span class="n">relative_fno</span> <span class="o">=</span> <span class="n">s</span><span class="p">.</span><span class="n">file</span><span class="o">#</span> <span class="k">and</span> <span class="n">se</span><span class="p">.</span><span class="n">header_block</span> <span class="o">=</span> <span class="n">s</span><span class="p">.</span><span class="n">block</span><span class="o">#</span><span class="p">)</span>
-<span class="k">where</span> <span class="k">not</span> <span class="k">exists</span> <span class="p">(</span><span class="k">select</span> <span class="mi">1</span> <span class="k">from</span> <span class="n">dba_users</span> <span class="n">u</span> <span class="k">where</span> <span class="n">u</span><span class="p">.</span><span class="n">user_id</span> <span class="o">=</span><span class="n">s</span><span class="p">.</span><span class="k">user</span><span class="o">#</span><span class="p">);</span></code></pre></figure>
-
-<p>The query returned 2 rows. Both segments were non-partitioned primary key indexes on a partitioned table. Rebuilding the indexes fixed the issue but I’m still curious how this could happen.</p>
-
-<p>There’s a bug on MOS (Bug 12614714) which describes a similar issue for segments for which an exchange partition operation was performed. 
-Here’s an excerpt from the note:</p>
-
-<blockquote>
-  <p>ORA-1950 updating a partitioned table<br />
-The user# in seg$ is not swapped after a partition exchange when the tables
-involved are in different schemas and one of the segments (partition/
-subpartition/lob fragment) is delayed, then it is likely that
-you have hit this bug.</p>
-</blockquote>
-
-<p>Despite that in my case no exchange partition was performed, deferred segment creation is certainly enabled. So, I assume it has something to do with that, but I was not able to think of a scenario where this could happen, nor was I able to create a reproducible test case.</p>
-
-
-    <a href="/2019/01/28/strange-case-of-ora-01950-no-privileges-on-tablespace/#comments">Comment</a>
   </div>
   
 </div>
