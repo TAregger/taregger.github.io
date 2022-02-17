@@ -57,7 +57,7 @@
 <meta name="twitter:site" content="@taregger" />
 <meta name="twitter:creator" content="@taregger" />
 <script type="application/ld+json">
-{"url":"https://blog.aregger.io/2019/08/05/jdbc-statement-caching/","headline":"JDBC Statement Caching: Implicit vs. Explicit","dateModified":"2019-08-05T00:00:00+02:00","datePublished":"2019-08-05T00:00:00+02:00","image":"https://blog.aregger.io/assets/2019-08-05-jdbc-statement-caching/thumbnail.png","author":{"@type":"Person","name":"Thomas Aregger"},"description":"The Oracle JDBC driver offers two methods for client-side statement caching. Enabling statement caching changes the behavior when the client closes a prepared statement. With statement caching disabled, the driver simply closes the statement. This is a server call which closes the associated cursor on the database. When the same statement is executed again it has to be at least soft parsed again. With statement caching enabled, the statement and its associated database cursor are not closed. Instead the statement is put in a pool (basically a LRU list of statements) for reuse. This way soft parses can be avoided which saves database resources and improves performance, which is the main reason to use statement caching.","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/2019/08/05/jdbc-statement-caching/"},"@type":"BlogPosting","@context":"https://schema.org"}</script>
+{"dateModified":"2019-08-05T00:00:00+02:00","datePublished":"2019-08-05T00:00:00+02:00","image":"https://blog.aregger.io/assets/2019-08-05-jdbc-statement-caching/thumbnail.png","url":"https://blog.aregger.io/2019/08/05/jdbc-statement-caching/","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.aregger.io/2019/08/05/jdbc-statement-caching/"},"author":{"@type":"Person","name":"Thomas Aregger"},"description":"The Oracle JDBC driver offers two methods for client-side statement caching. Enabling statement caching changes the behavior when the client closes a prepared statement. With statement caching disabled, the driver simply closes the statement. This is a server call which closes the associated cursor on the database. When the same statement is executed again it has to be at least soft parsed again. With statement caching enabled, the statement and its associated database cursor are not closed. Instead the statement is put in a pool (basically a LRU list of statements) for reuse. This way soft parses can be avoided which saves database resources and improves performance, which is the main reason to use statement caching.","@type":"BlogPosting","headline":"JDBC Statement Caching: Implicit vs. Explicit","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 
 </head>
@@ -102,6 +102,12 @@
         
       
         
+          
+        
+      
+        
+          
+            <a class="sidebar-nav-item" href="/opensource/">Open Source</a>
           
         
       
